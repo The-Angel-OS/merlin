@@ -11,10 +11,10 @@ interface Tenant { id: string; name: string; slug: string; domain?: string }
 
 const NAV_ITEMS = [
   { href: '/', label: 'Bridge' },
-  { href: '/cic', label: 'CIC' },
-  { href: '/spaces', label: 'Spaces' },
+  { href: '/connect', label: 'Federation' },
   { href: '/media', label: 'Media' },
-  { href: '/inbox', label: 'Inbox' },
+  { href: '/inventory', label: 'Ingest' },
+  { href: '/cameras', label: 'Cameras' },
   { href: '/youtube', label: 'YouTube' },
   { href: '/leo', label: 'LEO' },
   { href: '/log', label: 'Log' },

@@ -7,10 +7,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Search, LayoutDashboard, Monitor, Activity, FileText, BookOpen,
-  ShoppingBag, Image, Package, CalendarDays, MapPin, Hash, Inbox,
-  Sparkles, Camera, Film, Server, Box, Key, Youtube, Radio,
-  ExternalLink, ArrowRight, Upload, Plus,
+  Search, LayoutDashboard, Activity, Image, Sparkles, Camera, Film,
+  Key, Youtube, Radio, ExternalLink, ArrowRight, Upload, Plus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,32 +24,18 @@ type Item = {
 }
 
 const NAV_ITEMS: Item[] = [
-  { id: 'dashboard',    label: 'Dashboard',       sub: 'Bridge',         icon: LayoutDashboard, color: '#f5a623',  href: '/' },
-  { id: 'cic',          label: 'CIC',              sub: 'Bridge',         icon: Monitor,         color: '#f5a623',  href: '/cic' },
-  { id: 'log',          label: 'Activity Log',     sub: 'Bridge',         icon: Activity,        color: '#f5a623',  href: '/log' },
-  { id: 'pages',        label: 'Pages',            sub: 'Content',        icon: FileText,        color: '#99ccff',  href: '/content/pages' },
-  { id: 'posts',        label: 'Posts',            sub: 'Content',        icon: BookOpen,        color: '#99ccff',  href: '/content/posts' },
-  { id: 'products',     label: 'Products',         sub: 'Content',        icon: ShoppingBag,     color: '#22cc88',  href: '/content/products' },
-  { id: 'events',       label: 'Events',           sub: 'Content',        icon: CalendarDays,    color: '#99ccff',  href: '/content/events' },
-  { id: 'media',        label: 'Media',            sub: 'Content',        icon: Image,           color: '#99ccff',  href: '/media' },
-  { id: 'inventory',    label: 'Inventory Queue',  sub: 'Field Ops',      icon: Upload,          color: '#ff9a4d',  href: '/inventory' },
-  { id: 'inventory-new',label: 'Start New Batch',  sub: 'Field Ops',      icon: Plus,            color: '#ff9a4d',  href: '/inventory/new' },
-  { id: 'connect',      label: 'Federation',       sub: 'Connect',        icon: Radio,           color: '#99ccff',  href: '/connect' },
-  { id: 'orders',       label: 'Orders',           sub: 'Commerce',       icon: Package,         color: '#22cc88',  href: '/content/orders' },
-  { id: 'bookings',     label: 'Bookings',         sub: 'Commerce',       icon: CalendarDays,    color: '#22cc88',  href: '/content/bookings' },
-  { id: 'spaces-mgr',   label: 'Spaces Manager',   sub: 'Commerce',       icon: MapPin,          color: '#22cc88',  href: '/content/spaces-mgr' },
-  { id: 'spaces',       label: 'Spaces',           sub: 'Communication',  icon: Hash,            color: '#cc99cc',  href: '/spaces' },
-  { id: 'inbox',        label: 'Inbox',            sub: 'Communication',  icon: Inbox,           color: '#cc99cc',  href: '/inbox' },
-  { id: 'leo',          label: 'LEO — AI',         sub: 'Communication',  icon: Sparkles,        color: '#cc99cc',  href: '/leo' },
-  { id: 'cameras',      label: 'Cameras',          sub: 'Surveillance',   icon: Camera,          color: '#cc4444',  href: '/cameras' },
-  { id: 'recording',    label: 'Recording',        sub: 'Surveillance',   icon: Film,            color: '#cc4444',  href: '/recording' },
-  { id: 'vmware',       label: 'VMware',           sub: 'Infrastructure', icon: Server,          color: '#9977aa',  href: '/infra/vmware' },
-  { id: 'kubernetes',   label: 'Kubernetes',       sub: 'Infrastructure', icon: Box,             color: '#9977aa',  href: '/infra/kubernetes' },
-  { id: 'docker',       label: 'Docker',           sub: 'Infrastructure', icon: Box,             color: '#9977aa',  href: '/infra/docker' },
-  { id: 'books',        label: 'Books',            sub: 'Library',        icon: BookOpen,        color: '#99ccff',  href: '/book' },
-  { id: 'learn',        label: 'System Guide',     sub: 'Library',        icon: Sparkles,        color: '#99ccff',  href: '/learn' },
-  { id: 'youtube',      label: 'YouTube',          sub: 'System',         icon: Youtube,         color: '#7788aa',  href: '/youtube' },
-  { id: 'keys',         label: 'Keys & Config',    sub: 'System',         icon: Key,             color: '#7788aa',  href: '/keys' },
+  { id: 'connect',      label: 'Federation',      sub: 'Connect',      icon: Radio,           color: '#99ccff',  href: '/connect' },
+  { id: 'dashboard',    label: 'Dashboard',       sub: 'Bridge',       icon: LayoutDashboard, color: '#f5a623',  href: '/' },
+  { id: 'log',          label: 'Activity Log',    sub: 'Bridge',       icon: Activity,        color: '#f5a623',  href: '/log' },
+  { id: 'media',        label: 'Media',           sub: 'Media',        icon: Image,           color: '#99ccff',  href: '/media' },
+  { id: 'inventory',    label: 'Ingest',          sub: 'Ingest',       icon: Upload,          color: '#ff9a4d',  href: '/inventory' },
+  { id: 'inventory-new',label: 'New Batch',       sub: 'Ingest',       icon: Plus,            color: '#ff9a4d',  href: '/inventory/new' },
+  { id: 'leo',          label: 'LEO — AI',        sub: 'Comms',        icon: Sparkles,        color: '#cc99cc',  href: '/leo' },
+  { id: 'cameras',      label: 'Cameras',         sub: 'Surveillance', icon: Camera,          color: '#cc4444',  href: '/cameras' },
+  { id: 'recording',    label: 'Recording',       sub: 'Surveillance', icon: Film,            color: '#cc4444',  href: '/recording' },
+  { id: 'youtube',      label: 'YouTube',         sub: 'System',       icon: Youtube,         color: '#7788aa',  href: '/youtube' },
+  { id: 'keys',         label: 'Keys & Config',   sub: 'System',       icon: Key,             color: '#7788aa',  href: '/keys' },
+  { id: 'learn',        label: 'System Guide',    sub: 'System',       icon: Sparkles,        color: '#99ccff',  href: '/learn' },
 ]
 
 const EXTERNAL_ITEMS: Item[] = [
