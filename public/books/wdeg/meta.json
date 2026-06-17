@@ -1,0 +1,16 @@
+{
+  "title": "Walk with David, Every Generation",
+  "author": "Kenneth Stalcup",
+  "description": "A spiritual journey through the life of David — for every generation, in every language.",
+  "languages": ["en", "es", "fr", "de", "it", "pt", "pl", "ar", "he", "hi", "ur", "ja", "ru", "ko", "zh", "nl", "sv"],
+  "chapterCount": 26,
+  "accessType": "free",
+  "chapterTitles": [
+    "The Beginning", "The Call", "The Shepherd", "Giants", "The Cave",
+    "The Wilderness", "The King", "Bathsheba", "The Consequences", "The Exile",
+    "The Return", "The Temple", "The Psalms", "The War", "The Peace",
+    "The Son", "The Betrayal", "The Flight", "The Restoration", "The Covenant",
+    "The Songs", "The Wisdom", "The Twilight", "The Succession", "The Legacy",
+    "The Eternal Throne"
+  ]
+}

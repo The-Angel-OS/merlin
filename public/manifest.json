@@ -1,0 +1,26 @@
+{
+  "name": "Merlin — Angel OS Media Server",
+  "short_name": "Merlin",
+  "description": "Angel OS media server — movies, cameras, spaces, content, and a local intelligence bridge",
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#0a0a14",
+  "theme_color": "#0a0a14",
+  "orientation": "any",
+  "scope": "/",
+  "categories": ["productivity", "utilities", "entertainment"],
+  "lang": "en-US",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Dashboard", "url": "/",        "icons": [{"src": "/icon-192.png", "sizes": "192x192"}] },
+    { "name": "Cameras",   "url": "/cameras", "icons": [{"src": "/icon-192.png", "sizes": "192x192"}] },
+    { "name": "Spaces",    "url": "/spaces",  "icons": [{"src": "/icon-192.png", "sizes": "192x192"}] },
+    { "name": "LEO — AI",  "url": "/leo",     "icons": [{"src": "/icon-192.png", "sizes": "192x192"}] }
+  ]
+}

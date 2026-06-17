@@ -1,0 +1,221 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   JARVIS Command Center — Design Tokens
+   Cloned from Angel OS (oklch + LCARS Federation theme)
+
+   COMPATIBILITY NOTE (fix 2026-04-18):
+   oklch() and color-mix() need Chromium 111+ / Safari 15.4+ / Firefox 113+.
+   Older embedded browsers (LG webOS TV, BrowseHere on Android TV, many smart-
+   TV webviews) don't parse oklch — every CSS variable then becomes invalid
+   and the entire page renders unstyled. We declare sRGB hex fallbacks as the
+   base layer, and upgrade to oklch via @supports for browsers that can.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Light theme fallbacks (sRGB hex; JARVIS runs dark so these are rarely seen) */
+  --background: #ffffff;
+  --foreground: #252525;
+  --primary: #353535;
+  --primary-foreground: #fafafa;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #353535;
+  --card: #f3f3f5;
+  --card-foreground: #252525;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #353535;
+  --destructive: #dc2626;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #a3a3a3;
+  --radius: 0.625rem;
+
+  /* LCARS Federation tokens — hex throughout, already TV-safe */
+  --lcars-amber: #f5a623;
+  --lcars-orange: #ff9c00;
+  --lcars-peach: #ffaa6b;
+  --lcars-lavender: #cc99cc;
+  --lcars-blue: #99ccff;
+  --lcars-blue-deep: #4488cc;
+  --lcars-purple: #9977aa;
+  --lcars-green: #22cc88;
+  --lcars-red: #cc4444;
+  --lcars-dark-bg: #0a0a14;
+  --lcars-panel-bg: #0f0f1e;
+  --lcars-card-bg: #111122;
+  --lcars-text-muted: #7788aa;
+}
+
+html,
+html[data-theme='dark'] {
+  /* ── Dark theme fallbacks (sRGB hex approximations of the oklch values below) */
+  --background: #13131c;
+  --foreground: #ededed;
+  --primary: #4ec9a8;
+  --primary-foreground: #242424;
+  --secondary: #1e1e2a;
+  --secondary-foreground: #ededed;
+  --card: #1a1a24;
+  --card-foreground: #ededed;
+  --muted: #222230;
+  --muted-foreground: #9a9aa6;
+  --accent: #222230;
+  --accent-foreground: #ededed;
+  --destructive: #d94444;
+  --border: #252532;
+  --input: #252532;
+  --ring: #3fa58c;
+}
+
+/* Upgrade to oklch on browsers that understand it (Chromium 111+, Safari 15.4+,
+   Firefox 113+). Kept in :root / html blocks so specificity matches the fallback. */
+@supports (color: oklch(0% 0 0)) {
+  :root {
+    --background: oklch(100% 0 0deg);
+    --foreground: oklch(14.5% 0 0deg);
+    --primary: oklch(20.5% 0 0deg);
+    --primary-foreground: oklch(98.5% 0 0deg);
+    --secondary: oklch(97% 0 0deg);
+    --secondary-foreground: oklch(20.5% 0 0deg);
+    --card: oklch(96.5% 0.005 265deg);
+    --card-foreground: oklch(14.5% 0 0deg);
+    --muted: oklch(97% 0 0deg);
+    --muted-foreground: oklch(55.6% 0 0deg);
+    --accent: oklch(97% 0 0deg);
+    --accent-foreground: oklch(20.5% 0 0deg);
+    --destructive: oklch(57.7% 0.245 27.325deg);
+    --border: oklch(92.2% 0 0deg);
+    --input: oklch(92.2% 0 0deg);
+    --ring: oklch(70.8% 0 0deg);
+  }
+
+  html,
+  html[data-theme='dark'] {
+    --background: oklch(16% 0.008 260deg);
+    --foreground: oklch(93% 0 0deg);
+    --primary: oklch(65% 0.06 170deg);
+    --primary-foreground: oklch(14% 0 0deg);
+    --secondary: oklch(22% 0.008 260deg);
+    --secondary-foreground: oklch(93% 0 0deg);
+    --card: oklch(19.5% 0.008 260deg);
+    --card-foreground: oklch(93% 0 0deg);
+    --muted: oklch(24% 0.008 260deg);
+    --muted-foreground: oklch(66% 0.008 260deg);
+    --accent: oklch(24% 0.008 260deg);
+    --accent-foreground: oklch(93% 0 0deg);
+    --destructive: oklch(63% 0.2 25deg);
+    --border: oklch(25% 0.008 260deg);
+    --input: oklch(25% 0.008 260deg);
+    --ring: oklch(55% 0.06 170deg);
+  }
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-feature-settings: 'rlig' 1, 'calt' 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Focus rings — rgba fallback, color-mix upgrade
+   ═══════════════════════════════════════════════════════════════════════════ */
+a:focus-visible,
+input:focus-visible,
+button:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  /* Fallback: plain ring in --ring (hex in older browsers, oklch in new) */
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
+
+@supports (color: color-mix(in oklch, red, blue)) {
+  a:focus-visible,
+  input:focus-visible,
+  button:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px color-mix(in oklch, var(--ring) 60%, transparent);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LCARS animations
+   ═══════════════════════════════════════════════════════════════════════════ */
+@keyframes lcars-heartbeat {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+@keyframes lcars-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes lcars-glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; filter: drop-shadow(0 0 6px currentColor); }
+}
+
+@keyframes liveness-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+.lcars-heartbeat { animation: lcars-heartbeat 2s ease-in-out infinite; }
+.lcars-fade-up { animation: lcars-fade-up 0.5s ease-out both; }
+.lcars-glow { animation: lcars-glow-pulse 3s ease-in-out infinite; }
+.liveness-dot { animation: liveness-dot-pulse 1.2s ease-in-out infinite; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Utility patches
+   ═══════════════════════════════════════════════════════════════════════════ */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+.lcars-card {
+  background: rgba(17, 17, 34, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(245, 166, 35, 0.15);
+  border-radius: var(--radius);
+}
+
+.lcars-card:hover {
+  border-color: rgba(245, 166, 35, 0.35);
+  box-shadow: 0 0 24px rgba(245, 166, 35, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.lcars-accent-bar {
+  position: relative;
+}
+.lcars-accent-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8%;
+  bottom: 8%;
+  width: 4px;
+  background: var(--lcars-amber);
+  border-radius: 0 2px 2px 0;
+}
+
+.scan-overlay {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  pointer-events: none;
+}
