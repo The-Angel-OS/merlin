@@ -55,9 +55,15 @@ export default function ConnectionPill() {
             ? 'border-lcars-green/40 bg-lcars-green/8 text-lcars-green hover:bg-lcars-green/15'
             : 'border-border/60 text-muted-foreground hover:bg-accent/40',
         )}
-        title={active ? `Connected to ${active.name}` : 'Switch Endeavor'}
+        title={active ? `Signed in as ${active.user.name || active.user.email} · ${active.name}` : 'Switch Endeavor'}
       >
-        <Radio className="size-3" />
+        {active ? (
+          <span className="flex items-center justify-center size-4 rounded-full bg-lcars-green/25 text-[8px] font-bold leading-none text-lcars-green shrink-0">
+            {(active.user.name || active.user.email || '?').charAt(0).toUpperCase()}
+          </span>
+        ) : (
+          <Radio className="size-3" />
+        )}
         <span className="max-w-[120px] truncate">{active?.slug ?? 'offline'}</span>
         <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
       </button>
@@ -74,6 +80,21 @@ export default function ConnectionPill() {
             borderColor: 'var(--border)',
           }}
         >
+          {active ? (
+            <div className="flex items-center gap-2.5 border-b border-border/40 px-3 py-2.5">
+              <span className="flex items-center justify-center size-8 rounded-full bg-lcars-green/20 text-sm font-bold text-lcars-green shrink-0">
+                {(active.user.name || active.user.email || '?').charAt(0).toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                  <span className="size-1.5 rounded-full bg-lcars-green shrink-0" />
+                  <span className="truncate">{active.user.name ? `Signed in as ${active.user.name}` : 'Signed in'}</span>
+                </div>
+                <div className="truncate text-[10px] text-muted-foreground">{active.user.email}</div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="border-b border-border/40 px-3 py-2">
             <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               Endeavors
