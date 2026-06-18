@@ -7,7 +7,11 @@ export interface MediaRootConfig {
   path: string
   label: string
   icon: string
+  /** Serve this drive in Merlin's own UI (local browsing). */
   enabled: boolean
+  /** Publish this drive UP to the endeavor/federation. Separate from local serving —
+   * opt-in (default false) so you share only what you mean to, not your whole disk. */
+  shared?: boolean
   /** Minimum file size in MB to show (0 = show everything). Defaults to 0. */
   minSizeMB?: number
 }

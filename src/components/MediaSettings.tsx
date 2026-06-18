@@ -7,6 +7,7 @@ interface RootConfig {
   label: string
   icon: string
   enabled: boolean
+  shared?: boolean
   minSizeMB?: number
 }
 
@@ -65,6 +66,9 @@ export default function MediaSettings({
 
   const toggleEnabled = (i: number) =>
     setRoots(rs => rs.map((r, idx) => (idx === i ? { ...r, enabled: !r.enabled } : r)))
+
+  const toggleShared = (i: number) =>
+    setRoots(rs => rs.map((r, idx) => (idx === i ? { ...r, shared: !r.shared } : r)))
 
   const updateLabel = (i: number, label: string) =>
     setRoots(rs => rs.map((r, idx) => (idx === i ? { ...r, label } : r)))
@@ -129,7 +133,13 @@ export default function MediaSettings({
             <>
               {/* Configured shortcuts */}
               <section>
-                <h3 className="text-xs uppercase tracking-widest text-gray-500 mb-3">Your Shortcuts</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs uppercase tracking-widest text-gray-500">Your Shortcuts</h3>
+                  <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                    <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-violet-600" /> serve locally</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-600" /> share up</span>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   {roots.map((r, i) => (
                     <div
@@ -184,17 +194,32 @@ export default function MediaSettings({
                         </button>
                       </div>
 
-                      {/* Enabled toggle */}
+                      {/* Serve-locally toggle */}
                       <button
                         onClick={() => toggleEnabled(i)}
-                        className={`relative w-10 h-6 rounded-full transition-colors ${
+                        className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${
                           r.enabled ? 'bg-violet-600' : 'bg-gray-700'
                         }`}
-                        title={r.enabled ? 'Enabled' : 'Disabled'}
+                        title={r.enabled ? 'Served locally' : 'Not served'}
                       >
                         <span
                           className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
                             r.enabled ? 'translate-x-4' : ''
+                          }`}
+                        />
+                      </button>
+
+                      {/* Share-up toggle — publish to the endeavor/federation (opt-in) */}
+                      <button
+                        onClick={() => toggleShared(i)}
+                        className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${
+                          r.shared ? 'bg-emerald-600' : 'bg-gray-700'
+                        }`}
+                        title={r.shared ? 'Shared up to your endeavor' : 'Local only — not shared up'}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                            r.shared ? 'translate-x-4' : ''
                           }`}
                         />
                       </button>
