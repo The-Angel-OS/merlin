@@ -20,18 +20,6 @@ interface MovieItem {
   mtimeMs?: number
 }
 
-/** A DCIM-style root shows photos too (not just videos). */
-function isDcimRoot(dir: string): boolean {
-  const norm = dir.toLowerCase()
-  return getEnabledRoots().some(r => {
-    const rn = r.path.toLowerCase()
-    const isDcim = rn.endsWith('\\dcim') || rn.endsWith('/dcim') ||
-      rn.includes('\\dcim\\') || rn.includes('/dcim/') ||
-      rn.endsWith('\\camera') || rn.endsWith('/camera')
-    return isDcim && norm.startsWith(rn)
-  })
-}
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -79,6 +67,8 @@ async function respondDirectory(dir: string, minSize: number) {
 
   const items = await Promise.all(
     files.map(async (file) => {
+      // Skip hidden + thumbnail/temp artifacts (.temp-* from ffmpeg, .DS_Store, dotfiles).
+      if (file.startsWith('.')) return null
       const filePath = join(dir, file)
       let stats
       try {
@@ -108,7 +98,9 @@ async function respondDirectory(dir: string, minSize: number) {
         } as MovieItem
       }
 
-      if (isImage && isDcimRoot(dir)) {
+      // Images show in ANY root (no size gate — photos are small). The UI's
+      // Videos/Images toggle does the filtering.
+      if (isImage) {
         return {
           name: file,
           path: filePath,
