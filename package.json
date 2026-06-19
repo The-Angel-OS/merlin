@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "next lint",
+    "icons": "node scripts/generate-icons.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
@@ -52,6 +53,7 @@
     "fake-indexeddb": "^6.2.5",
     "https-localhost": "^4.7.1",
     "jsdom": "^29.0.2",
+    "sharp": "^0.35.2",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.4"
   }
