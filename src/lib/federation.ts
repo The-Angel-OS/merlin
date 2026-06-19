@@ -1,5 +1,5 @@
 /**
- * Nimue — Federation Directory & Endeavor Discovery
+ * Merlin — Federation Directory & Endeavor Discovery
  *
  * The federation root is spacesangels.com. Endeavors live at
  * {slug}.spacesangels.com. This module:
@@ -21,10 +21,12 @@ import { storage } from './storage'
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 export const FEDERATION_DEFAULTS = {
+  // Same-origin Merlin proxy (src/app/api/directory) — it server-fetches the
+  // federation's holons + peers and normalizes them, sidestepping CORS.
   directoryUrl:
     typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_FEDERATION_DIRECTORY_URL
       ? process.env.NEXT_PUBLIC_FEDERATION_DIRECTORY_URL
-      : 'https://www.spacesangels.com/api/federation/directory',
+      : '/api/directory',
   wellKnownPath: '/.well-known/angel-os',
   authLoginPath: '/api/federation/auth-login',
   authRefreshPath: '/api/federation/auth-refresh',
@@ -32,8 +34,8 @@ export const FEDERATION_DEFAULTS = {
   cacheTtlMs: 6 * 60 * 60 * 1000,
 }
 
-const STORAGE_KEY_DIRECTORY = 'nimue-federation-directory'
-const STORAGE_KEY_DIRECTORY_AT = 'nimue-federation-directory-at'
+const STORAGE_KEY_DIRECTORY = 'merlin-federation-directory'
+const STORAGE_KEY_DIRECTORY_AT = 'merlin-federation-directory-at'
 
 export function isFederationEnabled(): boolean {
   if (typeof process === 'undefined') return true
@@ -65,6 +67,10 @@ export interface EndeavorRef {
 export interface EnterpriseRef {
   id?: string
   domain: string
+  /** Human-facing Enterprise / Diocese name. */
+  name?: string
+  /** Federation trust tier: applicant | probation | active | suspended | revoked. */
+  ministryStatus?: string
   hostsEndeavors?: number
   /** 'green' | 'amber' | 'red' — heartbeat-derived capacity hint. */
   capacityHint?: 'green' | 'amber' | 'red'
@@ -94,13 +100,20 @@ export interface EndeavorManifest {
 // ─── Seed directory ─────────────────────────────────────────────────────────
 
 /**
- * Bundled seed — the four known Endeavors as of Sprint 44-45.
- * Used as fallback when the network directory is unreachable on first run.
- * Updated lazily from the live directory on successful fetches.
+ * Bundled seed — known Endeavors on the spacesangels.com root node.
+ * Last-resort fallback only, when /api/directory (and any cache) is unreachable
+ * on first run. The live directory always wins and overwrites the cache.
  */
 export const SEED_DIRECTORY: DirectoryResponse = {
   federationVersion: '1.0',
   endeavors: [
+    {
+      slug: 'wheredideveryonego',
+      name: 'Where Did Everyone Go',
+      domain: 'wheredideveryonego.spacesangels.com',
+      hostedOn: 'spacesangels.com',
+      publicProfile: { category: 'ministry' },
+    },
     {
       slug: 'clearwater-cruisin',
       name: "Clearwater Cruisin' Ministries",
@@ -116,22 +129,22 @@ export const SEED_DIRECTORY: DirectoryResponse = {
       publicProfile: { category: 'community-help' },
     },
     {
-      slug: 'hayescactusfarm',
-      name: 'Hayes Cactus Farm',
-      domain: 'hayescactusfarm.spacesangels.com',
+      slug: 'grace-chapel',
+      name: 'Grace Chapel',
+      domain: 'grace-chapel.spacesangels.com',
       hostedOn: 'spacesangels.com',
-      publicProfile: { category: 'small-business' },
+      publicProfile: { category: 'church' },
     },
     {
-      slug: 'tomstalcupforcongress',
-      name: 'Tom Stalcup for Congress',
-      domain: 'tomstalcupforcongress.spacesangels.com',
+      slug: 'hays-cactus',
+      name: 'Hays Cactus Farm',
+      domain: 'hays-cactus.spacesangels.com',
       hostedOn: 'spacesangels.com',
-      publicProfile: { category: 'campaign' },
+      publicProfile: { category: 'retail-commerce' },
     },
   ],
   enterprises: [
-    { domain: 'spacesangels.com', hostsEndeavors: 4, capacityHint: 'green' },
+    { id: 'root', domain: 'spacesangels.com', name: 'Angel OS Foundation', ministryStatus: 'active', hostsEndeavors: 5, capacityHint: 'green' },
   ],
 }
 

@@ -17,6 +17,7 @@ const KEY_FIELDS: KeyField[] = [
   { key: 'youtubeClientSecret', label: 'OAuth2 Client Secret', type: 'password', placeholder: 'GOCSPX-...', hint: 'OAuth2 client secret', group: 'YouTube' },
   { key: 'youtubeRefreshToken', label: 'OAuth2 Refresh Token', type: 'password', placeholder: '1//...', hint: 'Run OAuth2 flow once to obtain', group: 'YouTube' },
   { key: 'anthropicApiKey', label: 'Anthropic API Key', type: 'password', placeholder: 'sk-ant-...', hint: 'Direct Claude API fallback when Angel OS is offline', group: 'AI' },
+  { key: 'geminiApiKey', label: 'Gemini API Key', type: 'password', placeholder: 'AIza...', hint: 'Google AI Studio key — LEO prefers this (free tier) over Anthropic', group: 'AI' },
 ]
 
 const GROUPS = ['Angel OS', 'YouTube', 'AI']

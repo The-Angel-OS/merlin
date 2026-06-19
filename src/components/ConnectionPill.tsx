@@ -1,6 +1,6 @@
 'use client'
 /**
- * ConnectionPill — the "combadge" for Nimue's federation connection.
+ * ConnectionPill — the "combadge" for Merlin's federation connection.
  *
  * Sits in the header. Shows the active Endeavor, expands on click to let
  * the user switch between remembered Endeavors or head to /connect to add

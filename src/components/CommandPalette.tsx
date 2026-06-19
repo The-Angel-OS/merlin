@@ -35,7 +35,7 @@ const NAV_ITEMS: Item[] = [
   { id: 'recording',    label: 'Recording',       sub: 'Surveillance', icon: Film,            color: '#cc4444',  href: '/recording' },
   { id: 'youtube',      label: 'YouTube',         sub: 'System',       icon: Youtube,         color: '#7788aa',  href: '/youtube' },
   { id: 'keys',         label: 'Keys & Config',   sub: 'System',       icon: Key,             color: '#7788aa',  href: '/keys' },
-  { id: 'learn',        label: 'System Guide',    sub: 'System',       icon: Sparkles,        color: '#99ccff',  href: '/learn' },
+  { id: 'learn',        label: 'Learn',    sub: 'System',       icon: Sparkles,        color: '#99ccff',  href: '/learn' },
 ]
 
 const EXTERNAL_ITEMS: Item[] = [

@@ -1,11 +1,11 @@
 'use client'
 /**
- * /learn — NIMUE System Guide
+ * /learn — MERLIN System Guide
  * Combines the Angel OS /learn module style with answer53's
  * Framer Motion visual language: stagger entrance, spring cards,
  * orbital icons, animated bars, floating glows.
  *
- * Teaches: what NIMUE is, how each section works, how to configure,
+ * Teaches: what MERLIN is, how each section works, how to configure,
  * how to extend. Self-documenting control panel.
  */
 import { useState, useRef } from 'react'
@@ -177,13 +177,13 @@ const MODULES: Module[] = [
             <p>Modern browsers restrict many APIs to <strong className="text-foreground">secure contexts</strong> — only <code className="text-[11px] bg-white/6 px-1 rounded font-mono">https://</code>, <code className="text-[11px] bg-white/6 px-1 rounded font-mono">localhost</code>, and <code className="text-[11px] bg-white/6 px-1 rounded font-mono">127.0.0.1</code> qualify. Plain HTTP over a LAN IP (e.g. <code className="text-[11px] bg-white/6 px-1 rounded font-mono">http://192.168.0.234:3000</code>) does <em>not</em>.</p>
             <p>In a non-secure context, these APIs are <strong className="text-foreground">undefined</strong>:</p>
             <ul className="list-disc list-inside space-y-1 text-[13px] text-muted-foreground ml-2">
-              <li><code className="text-[11px] bg-white/6 px-1 rounded font-mono">crypto.subtle</code> — SHA-256 hashing (Nimue inventory dedupe)</li>
+              <li><code className="text-[11px] bg-white/6 px-1 rounded font-mono">crypto.subtle</code> — SHA-256 hashing (Merlin inventory dedupe)</li>
               <li><code className="text-[11px] bg-white/6 px-1 rounded font-mono">crypto.randomUUID</code> — UUID generation</li>
               <li><code className="text-[11px] bg-white/6 px-1 rounded font-mono">navigator.geolocation</code> — GPS tagging for photo inventory</li>
               <li>Service Workers &amp; Push Notifications — PWA offline cache</li>
               <li><code className="text-[11px] bg-white/6 px-1 rounded font-mono">getUserMedia</code> — camera/microphone for Spaces (LiveKit)</li>
             </ul>
-            <p>Nimue gracefully degrades where it can (FNV-1a fallback for hashing), but for the full experience — especially Spaces and PWA install — use HTTPS.</p>
+            <p>Merlin gracefully degrades where it can (FNV-1a fallback for hashing), but for the full experience — especially Spaces and PWA install — use HTTPS.</p>
           </div>
         ),
       },
@@ -225,7 +225,7 @@ const MODULES: Module[] = [
         icon: <Globe className="size-3.5" />,
         content: (
           <div className="space-y-2">
-            <p>Nimue uses modern CSS (<code className="text-[11px] bg-white/6 px-1 rounded font-mono">oklch()</code>, <code className="text-[11px] bg-white/6 px-1 rounded font-mono">color-mix()</code>) with sRGB hex fallbacks via <code className="text-[11px] bg-white/6 px-1 rounded font-mono">@supports</code>. Baseline:</p>
+            <p>Merlin uses modern CSS (<code className="text-[11px] bg-white/6 px-1 rounded font-mono">oklch()</code>, <code className="text-[11px] bg-white/6 px-1 rounded font-mono">color-mix()</code>) with sRGB hex fallbacks via <code className="text-[11px] bg-white/6 px-1 rounded font-mono">@supports</code>. Baseline:</p>
             <div className="space-y-1.5 font-mono text-[11px]">
               {[
                 ['Chrome / Edge / Brave', '111+', 'Full support', '#22cc88'],
@@ -245,7 +245,7 @@ const MODULES: Module[] = [
                 </div>
               ))}
             </div>
-            <p className="text-[12px] text-muted-foreground mt-2">On older webviews that don&apos;t parse <code className="text-[11px] bg-white/6 px-1 rounded font-mono">oklch()</code>, Nimue ships sRGB hex variables as the base layer — everything still renders, just in the fallback palette.</p>
+            <p className="text-[12px] text-muted-foreground mt-2">On older webviews that don&apos;t parse <code className="text-[11px] bg-white/6 px-1 rounded font-mono">oklch()</code>, Merlin ships sRGB hex variables as the base layer — everything still renders, just in the fallback palette.</p>
           </div>
         ),
       },
@@ -255,7 +255,7 @@ const MODULES: Module[] = [
         icon: <Globe className="size-3.5" />,
         content: (
           <div className="space-y-2">
-            <p>Over HTTPS, Nimue installs as a Progressive Web App on every platform:</p>
+            <p>Over HTTPS, Merlin installs as a Progressive Web App on every platform:</p>
             <ul className="list-disc list-inside space-y-1 text-[13px] text-muted-foreground ml-2">
               <li><strong className="text-foreground">Desktop Chrome/Edge:</strong> click the install icon in the URL bar (looks like a monitor with a down-arrow)</li>
               <li><strong className="text-foreground">iOS Safari:</strong> Share → Add to Home Screen</li>
@@ -277,7 +277,7 @@ const MODULES: Module[] = [
               <li>Use <strong className="text-foreground">BrowseHere</strong> or <strong className="text-foreground">TV Bro</strong> on Android TV / Fire TV — both track mainline Chromium closely.</li>
               <li>LG webOS&apos; stock browser is usable on webOS 6+ (2021 sets and later). Older sets may fall back to the hex palette but still render.</li>
               <li>If the page loads completely unstyled, check DevTools remote (<code className="text-[11px] bg-white/6 px-1 rounded font-mono">chrome://inspect</code> from your desktop) — likely a pre-<code className="text-[11px] bg-white/6 px-1 rounded font-mono">@supports</code> CSS parse issue we missed.</li>
-              <li>Hardware cursor / remote nav: every interactive element in Nimue is keyboard-focusable. Use the directional pad + OK button.</li>
+              <li>Hardware cursor / remote nav: every interactive element in Merlin is keyboard-focusable. Use the directional pad + OK button.</li>
               <li>4K 60fps video on the CIC display — TVs handle this natively. Leave the wall monitor on <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/cic</code> for ambient battle-stations ambience.</li>
             </ul>
           </div>
@@ -329,7 +329,7 @@ const MODULES: Module[] = [
         icon: <Network className="size-3.5" />,
         content: (
           <div className="space-y-2">
-            <p>NIMUE proxies all <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/api/payload/*</code> requests to the Angel OS mothership at <code className="text-[11px] bg-white/6 px-1 rounded font-mono">NEXT_PUBLIC_ANGELS_URL</code>. Responses are cached locally in <code className="text-[11px] bg-white/6 px-1 rounded font-mono">data/payload-cache/</code> with a 2-hour TTL via the service worker.</p>
+            <p>MERLIN proxies all <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/api/payload/*</code> requests to the Angel OS mothership at <code className="text-[11px] bg-white/6 px-1 rounded font-mono">NEXT_PUBLIC_ANGELS_URL</code>. Responses are cached locally in <code className="text-[11px] bg-white/6 px-1 rounded font-mono">data/payload-cache/</code> with a 2-hour TTL via the service worker.</p>
             <p>The cache means content pages load instantly even when your internet is down or Angel OS is unreachable. The source badge (Live / Cached / Offline) shows you which you&apos;re seeing.</p>
           </div>
         ),
@@ -380,7 +380,7 @@ const MODULES: Module[] = [
         icon: <Hash className="size-3.5" />,
         content: (
           <div className="space-y-2">
-            <p><strong className="text-foreground">Spaces</strong> is a full-featured voice and video room powered by LiveKit. Join any room by name; NIMUE mints a short-lived JWT token server-side using your LiveKit API key + secret.</p>
+            <p><strong className="text-foreground">Spaces</strong> is a full-featured voice and video room powered by LiveKit. Join any room by name; MERLIN mints a short-lived JWT token server-side using your LiveKit API key + secret.</p>
             <p>To self-host LiveKit: <code className="text-[11px] bg-white/6 px-1 rounded font-mono">docker run -p 7880:7880 -p 7881:7881 -p 7882:7882/udp livekit/livekit-server --dev</code>. Configure the URL and credentials in Keys &amp; Config.</p>
           </div>
         ),
@@ -392,7 +392,7 @@ const MODULES: Module[] = [
         content: (
           <div className="space-y-2">
             <p><strong className="text-foreground">LEO</strong> (Local Entity Operator) is the Angel OS constitutional AI assistant. It routes through 4 model tiers (GPT-4 → Claude → Gemini → local Ollama) based on task complexity and credit availability.</p>
-            <p>From NIMUE, LEO can: generate YouTube chapters from SRT, optimize descriptions, generate hashtags, manage content, create bookings, and help diagnose system issues. All via the Angel OS <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/api/leo</code> stream endpoint.</p>
+            <p>From MERLIN, LEO can: generate YouTube chapters from SRT, optimize descriptions, generate hashtags, manage content, create bookings, and help diagnose system issues. All via the Angel OS <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/api/leo</code> stream endpoint.</p>
             <p>LEO has 118 tools across 15 engines. Use the chat tab for general questions; the specialized tabs (Chapters, Hashtags, Optimize) for YouTube workflow.</p>
           </div>
         ),
@@ -415,15 +415,15 @@ const MODULES: Module[] = [
           <div className="space-y-3">
             <div>
               <p className="font-mono text-[10px] text-lcars-red uppercase tracking-wider mb-1">MJPEG</p>
-              <p className="text-sm text-muted-foreground">Most IP cameras. NIMUE proxies the HTTP stream through <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/api/cameras/[id]/stream</code> so credentials never reach the browser. Works everywhere, no ffmpeg needed.</p>
+              <p className="text-sm text-muted-foreground">Most IP cameras. MERLIN proxies the HTTP stream through <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/api/cameras/[id]/stream</code> so credentials never reach the browser. Works everywhere, no ffmpeg needed.</p>
             </div>
             <div>
               <p className="font-mono text-[10px] text-lcars-blue uppercase tracking-wider mb-1">HLS</p>
-              <p className="text-sm text-muted-foreground">Higher quality, adaptive bitrate. Requires nginx-rtmp or ffmpeg to convert RTSP → m3u8 segments. NIMUE serves the playlist and segments. Good for recordings.</p>
+              <p className="text-sm text-muted-foreground">Higher quality, adaptive bitrate. Requires nginx-rtmp or ffmpeg to convert RTSP → m3u8 segments. MERLIN serves the playlist and segments. Good for recordings.</p>
             </div>
             <div>
               <p className="font-mono text-[10px] text-lcars-amber uppercase tracking-wider mb-1">RTSP direct</p>
-              <p className="text-sm text-muted-foreground">Needs the nginx-rtmp-module config in <code className="text-[11px] bg-white/6 px-1 rounded font-mono">nginx-config/nimue.conf</code>. Run nginx on the same host as NIMUE to ingest RTSP and emit HLS.</p>
+              <p className="text-sm text-muted-foreground">Needs the nginx-rtmp-module config in <code className="text-[11px] bg-white/6 px-1 rounded font-mono">nginx-config/merlin.conf</code>. Run nginx on the same host as MERLIN to ingest RTSP and emit HLS.</p>
             </div>
           </div>
         ),
@@ -442,7 +442,7 @@ const MODULES: Module[] = [
         id: 'lan-discovery',
         title: 'LAN Discovery',
         icon: <Network className="size-3.5" />,
-        content: <p>Click <strong className="text-foreground">Scan LAN</strong> on any Infrastructure page to probe your subnet for VMware ESXi (443, 8443), Kubernetes API (6443), Docker Engine (2375), Portainer (9000), Plex (32400), Jellyfin (8096), Home Assistant (8123), IP cameras (554, 80), and other Angel OS NIMUE nodes (3001, 3030). 800ms timeout per probe across 60+ hosts.</p>,
+        content: <p>Click <strong className="text-foreground">Scan LAN</strong> on any Infrastructure page to probe your subnet for VMware ESXi (443, 8443), Kubernetes API (6443), Docker Engine (2375), Portainer (9000), Plex (32400), Jellyfin (8096), Home Assistant (8123), IP cameras (554, 80), and other Angel OS MERLIN nodes (3001, 3030). 800ms timeout per probe across 60+ hosts.</p>,
       },
       {
         id: 'proxies',
@@ -450,8 +450,8 @@ const MODULES: Module[] = [
         icon: <Server className="size-3.5" />,
         content: (
           <div className="space-y-2">
-            <p>Set <code className="text-[11px] bg-white/6 px-1 rounded font-mono">VMWARE_URL</code> and <code className="text-[11px] bg-white/6 px-1 rounded font-mono">K8S_DASHBOARD_URL</code> in <code className="text-[11px] bg-white/6 px-1 rounded font-mono">.env.local</code>. NIMUE embeds those UIs via nginx reverse-proxy rewrites at <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/proxy/vmware/</code> and <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/proxy/kubernetes/</code>.</p>
-            <p>Docker Engine: enable TCP API in Docker Desktop → Settings → General → &quot;Expose daemon on tcp://localhost:2375&quot;. NIMUE then auto-discovers containers via <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/api/infra/docker</code>.</p>
+            <p>Set <code className="text-[11px] bg-white/6 px-1 rounded font-mono">VMWARE_URL</code> and <code className="text-[11px] bg-white/6 px-1 rounded font-mono">K8S_DASHBOARD_URL</code> in <code className="text-[11px] bg-white/6 px-1 rounded font-mono">.env.local</code>. MERLIN embeds those UIs via nginx reverse-proxy rewrites at <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/proxy/vmware/</code> and <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/proxy/kubernetes/</code>.</p>
+            <p>Docker Engine: enable TCP API in Docker Desktop → Settings → General → &quot;Expose daemon on tcp://localhost:2375&quot;. MERLIN then auto-discovers containers via <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/api/infra/docker</code>.</p>
           </div>
         ),
       },
@@ -471,7 +471,7 @@ const MODULES: Module[] = [
         icon: <Globe className="size-3.5" />,
         content: (
           <div className="space-y-2">
-            <p>Open NIMUE in Chrome or Edge, click the install button in the address bar, and it installs like a native app with its own icon, offline cache, and window chrome. Works on any OS.</p>
+            <p>Open MERLIN in Chrome or Edge, click the install button in the address bar, and it installs like a native app with its own icon, offline cache, and window chrome. Works on any OS.</p>
             <p>Service worker caches <code className="text-[11px] bg-white/6 px-1 rounded font-mono">/api/payload/*</code> responses for 2 hours (StaleWhileRevalidate), camera snapshots for 30 seconds (NetworkFirst), and static assets permanently (CacheFirst).</p>
           </div>
         ),
@@ -480,13 +480,13 @@ const MODULES: Module[] = [
         id: 'tauri',
         title: 'Windows system-tray (Sprint 47)',
         icon: <Box className="size-3.5" />,
-        content: <p>Tauri 2 wraps NIMUE in a ~10 MB signed Windows MSI with a system-tray icon. Menu: Open NIMUE · Cameras · Spaces · LEO · discovered nodes · quit. Auto-starts on login. Uses WebView2 (ships with Windows 10+) so LiveKit WebRTC works natively.</p>,
+        content: <p>Tauri 2 wraps MERLIN in a ~10 MB signed Windows MSI with a system-tray icon. Menu: Open MERLIN · Cameras · Spaces · LEO · discovered nodes · quit. Auto-starts on login. Uses WebView2 (ships with Windows 10+) so LiveKit WebRTC works natively.</p>,
       },
       {
         id: 'capacitor',
         title: 'Android & iOS (Sprint 48–49)',
         icon: <Wifi className="size-3.5" />,
-        content: <p>Capacitor 6 wraps the same Next.js build. <code className="text-[11px] bg-white/6 px-1 rounded font-mono">npx cap add android/ios</code>, configure <code className="text-[11px] bg-white/6 px-1 rounded font-mono">com.angels.nimue</code>, build the AAB/IPA. Storage is already abstracted via <code className="text-[11px] bg-white/6 px-1 rounded font-mono">src/lib/storage.ts</code> — Capacitor Preferences on device, localStorage in the browser.</p>,
+        content: <p>Capacitor 6 wraps the same Next.js build. <code className="text-[11px] bg-white/6 px-1 rounded font-mono">npx cap add android/ios</code>, configure <code className="text-[11px] bg-white/6 px-1 rounded font-mono">com.angels.merlin</code>, build the AAB/IPA. Storage is already abstracted via <code className="text-[11px] bg-white/6 px-1 rounded font-mono">src/lib/storage.ts</code> — Capacitor Preferences on device, localStorage in the browser.</p>,
       },
     ],
   },
@@ -562,9 +562,9 @@ export default function LearnPage() {
           </div>
           <div>
             <div className="text-[10px] font-mono uppercase tracking-widest text-lcars-amber/70 mb-2">
-              ── System Guide · NIMUE v3
+              ── System Guide · MERLIN v3
             </div>
-            <h1 className="text-4xl font-mono font-semibold tracking-tight">Learn NIMUE</h1>
+            <h1 className="text-4xl font-mono font-semibold tracking-tight">Learn MERLIN</h1>
             <p className="text-base text-muted-foreground mt-2 leading-relaxed">
               The Angel OS control panel. Local node, offline-first, LAN-served.
               Understand every module — then bend it to your mission.
@@ -616,7 +616,7 @@ export default function LearnPage() {
         </motion.div>
         <div className="flex-1 text-center sm:text-left">
           <div className="font-mono text-sm font-semibold">Talk to LEO</div>
-          <div className="text-xs text-muted-foreground mt-0.5">LEO can answer questions about NIMUE, configure settings, and help you get things done conversationally.</div>
+          <div className="text-xs text-muted-foreground mt-0.5">LEO can answer questions about MERLIN, configure settings, and help you get things done conversationally.</div>
         </div>
         <Link
           href="/leo"

@@ -2,7 +2,7 @@
  * Payload CMS Client — talks to the Angel OS mothership
  *
  * Pattern: fetch from mothership → fall back to local cache → mark offline
- * This makes NIMUE a pure client of Angel OS, wrappable as iOS/Android.
+ * This makes MERLIN a pure client of Angel OS, wrappable as iOS/Android.
  */
 import { getSettings } from './store'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'

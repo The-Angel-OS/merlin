@@ -69,12 +69,12 @@ export default function InventoryPage() {
     const onUp = () => setRunning(isUploaderRunning())
     const onOnline = () => setOnline(true)
     const onOffline = () => setOnline(false)
-    window.addEventListener('nimue:uploader', onUp)
+    window.addEventListener('merlin:uploader', onUp)
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
     listBatches().then(setBatches).catch(() => {})
     return () => {
-      window.removeEventListener('nimue:uploader', onUp)
+      window.removeEventListener('merlin:uploader', onUp)
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
     }

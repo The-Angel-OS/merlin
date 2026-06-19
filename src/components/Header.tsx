@@ -38,7 +38,7 @@ export default function Header() {
         const docs = res?.data?.docs || []
         setTenants(docs)
         // Restore last selected tenant
-        const saved = typeof window !== 'undefined' ? localStorage.getItem('nimue-tenant') : null
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('merlin-tenant') : null
         if (saved) {
           const found = docs.find((t: Tenant) => t.slug === saved)
           if (found) setTenant(found)
@@ -68,7 +68,7 @@ export default function Header() {
 
   const pickTenant = (t: Tenant) => {
     setTenant(t)
-    if (typeof window !== 'undefined') localStorage.setItem('nimue-tenant', t.slug)
+    if (typeof window !== 'undefined') localStorage.setItem('merlin-tenant', t.slug)
     setShowTenantPicker(false)
   }
 

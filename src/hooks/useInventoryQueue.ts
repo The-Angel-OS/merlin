@@ -2,7 +2,7 @@
 /**
  * useInventoryQueue — subscribe a component to queue changes.
  *
- * Polls every 2s + listens for `nimue:uploader` events so the UI
+ * Polls every 2s + listens for `merlin:uploader` events so the UI
  * refreshes the moment an upload starts/finishes.
  */
 import { useEffect, useState, useCallback } from 'react'
@@ -38,12 +38,12 @@ export function useInventoryQueue(opts: { batchId?: string } = {}) {
     const iv = setInterval(refresh, POLL_MS)
     const onUp = () => refresh()
     if (typeof window !== 'undefined') {
-      window.addEventListener('nimue:uploader', onUp)
+      window.addEventListener('merlin:uploader', onUp)
     }
     return () => {
       clearInterval(iv)
       if (typeof window !== 'undefined') {
-        window.removeEventListener('nimue:uploader', onUp)
+        window.removeEventListener('merlin:uploader', onUp)
       }
     }
   }, [refresh])

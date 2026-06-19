@@ -24,7 +24,7 @@ const CRUMBS: Record<string, Crumb> = {
   '/recording':             { label: 'Recording',      color: '#cc4444', parent: 'Surveillance', parentColor: '#cc4444' },
   '/youtube':               { label: 'YouTube',        color: '#7788aa', parent: 'System',       parentColor: '#7788aa' },
   '/keys':                  { label: 'Keys & Config',  color: '#7788aa', parent: 'System',       parentColor: '#7788aa' },
-  '/learn':                 { label: 'System Guide',   color: '#99ccff', parent: 'System',       parentColor: '#7788aa' },
+  '/learn':                 { label: 'Learn',   color: '#99ccff', parent: 'System',       parentColor: '#7788aa' },
 }
 
 function resolveCrumb(pathname: string): Crumb | undefined {

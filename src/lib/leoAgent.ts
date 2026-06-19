@@ -1,0 +1,48 @@
+/**
+ * leoAgent.ts — Merlin's adapter around the portable brain (leoBrain).
+ *
+ * This is the ONLY platform-specific glue: it injects Merlin's tool belt (TOOLS),
+ * Merlin's provider keys (from store), and Merlin's persistence (leoChats), then
+ * calls the embodiment-agnostic runBrain. Core/Nimue write their own equivalent
+ * adapter with a different belt — the brain itself is unchanged.
+ */
+import { getSettings, appendLog } from './store'
+import { TOOLS } from './leoTools'
+import { loadConversation, saveConversation } from './leoChats'
+import { runBrain } from './leoBrain'
+import type { NeutralMsg } from './leoProviders'
+
+const SYSTEM = `You are LEO, the local AI for this Merlin node — an Angel OS media server that runs on the user's own box. You can use local tools to inspect and change configuration, transcribe URLs, and list media on this machine. Prefer DOING the work with a tool over telling the user to do it by hand (e.g. if asked to set a key, call set_config). Report what you actually did, concisely. Secrets are never shown in full.`
+
+export type AgentResult = { response: string; steps: number; toolsUsed: string[]; provider: string }
+
+export async function runAgent(conversationId: string, userText: string): Promise<AgentResult> {
+  const s = getSettings()
+  const convo = loadConversation(conversationId)
+  const prior: NeutralMsg[] = convo.messages.map(stripAt)
+
+  const r = await runBrain({
+    messages: prior,
+    userText,
+    tools: TOOLS,
+    providerConfig: { geminiApiKey: s.geminiApiKey, anthropicApiKey: s.anthropicApiKey },
+    system: SYSTEM,
+  })
+
+  // Persist only the new turns; keep prior timestamps intact.
+  const added = r.messages.slice(prior.length)
+  for (const m of added) convo.messages.push({ ...m, at: new Date().toISOString() })
+  saveConversation(convo)
+
+  appendLog({
+    type: 'angels',
+    source: 'leo-agent',
+    message: `[${r.provider}] ${userText.slice(0, 50)} (${r.steps} steps; tools: ${r.toolsUsed.join(', ') || 'none'})`,
+  })
+  return { response: r.response, steps: r.steps, toolsUsed: r.toolsUsed, provider: r.provider }
+}
+
+function stripAt(m: { at: string } & NeutralMsg): NeutralMsg {
+  const { at: _at, ...rest } = m
+  return rest as NeutralMsg
+}

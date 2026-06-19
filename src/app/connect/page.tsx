@@ -12,20 +12,30 @@
  */
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useConnection } from '@/hooks/useConnection'
-import type { EndeavorRef } from '@/lib/federation'
+import type { EndeavorRef, EnterpriseRef } from '@/lib/federation'
 import {
   Search, Radio, CheckCircle2, AlertCircle, Globe,
-  ChevronRight, Wifi, WifiOff, RefreshCw,
+  ChevronRight, Wifi, WifiOff, RefreshCw, Building2, X,
 } from 'lucide-react'
 
 const CATEGORY_COLOR: Record<string, string> = {
   ministry: '#cc99cc',
+  church: '#cc99cc',
   'community-help': '#99ccff',
   'small-business': '#f5a623',
+  'retail-commerce': '#f5a623',
   campaign: '#ff9a4d',
   default: '#7788aa',
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  active: '#22cc88',
+  probation: '#f5a623',
+  applicant: '#99ccff',
+  suspended: '#cc4444',
+  revoked: '#cc4444',
 }
 
 function categoryColor(cat?: string): string {
@@ -36,13 +46,28 @@ export default function ConnectPage() {
   const { directory, directoryLoading, directoryError, sessions, active, refreshDirectory, search } = useConnection()
   const [query, setQuery] = useState('')
   const [manualDomain, setManualDomain] = useState('')
+  const [view, setView] = useState<'endeavors' | 'enterprises'>('endeavors')
+  const [enterpriseFilter, setEnterpriseFilter] = useState<string | null>(null)
 
   const rememberedSlugs = useMemo(
     () => new Set(sessions.map(s => s.slug)),
     [sessions],
   )
 
-  const results = useMemo(() => search(query), [search, query])
+  const enterprises = directory?.enterprises ?? []
+  const endeavorCount = directory?.endeavors.length ?? 0
+  const selectedEnterprise = enterprises.find(x => (x.id ?? x.domain) === enterpriseFilter)
+
+  const results = useMemo(() => {
+    const base = search(query)
+    if (!enterpriseFilter) return base
+    return base.filter(e => (e.enterpriseId ?? 'root') === enterpriseFilter)
+  }, [search, query, enterpriseFilter])
+
+  const pickEnterprise = (ent: EnterpriseRef) => {
+    setEnterpriseFilter(ent.id ?? ent.domain)
+    setView('endeavors')
+  }
 
   return (
     <div className="mx-auto w-full max-w-4xl p-6">
@@ -63,12 +88,14 @@ export default function ConnectPage() {
           {directory?.degraded ? (
             <span className="inline-flex items-center gap-1.5">
               <WifiOff className="h-3.5 w-3.5" style={{ color: '#f5a623' }} />
-              Using cached / seed directory
+              Offline — cached / seed directory
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5">
               <Wifi className="h-3.5 w-3.5" style={{ color: '#22cc88' }} />
-              Live from <code className="ml-1" style={{ color: '#99ccff' }}>spacesangels.com</code>
+              <span style={{ color: '#22cc88' }}>Connected to federation</span>
+              <span style={{ color: '#556677' }}>·</span>
+              {endeavorCount} endeavor{endeavorCount === 1 ? '' : 's'} across {enterprises.length} enterprise{enterprises.length === 1 ? '' : 's'}
             </span>
           )}
           <button
@@ -129,20 +156,41 @@ export default function ConnectPage() {
         </section>
       ) : null}
 
-      {/* ─── Search ──────────────────────────────────────────────────── */}
-      <section className="mb-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: '#7788aa' }} />
-          <input
-            autoFocus
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search Endeavors — e.g. helpdna, hayes, ministry"
-            className="w-full rounded border bg-black/20 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-white/30"
-            style={{ borderColor: '#ffffff20', color: '#eef2ff' }}
-          />
+      {/* ─── View toggle: Endeavors | Enterprises ────────────────────── */}
+      <section className="mb-4 flex items-center gap-2">
+        <div className="inline-flex rounded border p-0.5" style={{ borderColor: '#ffffff20' }}>
+          <ToggleBtn active={view === 'endeavors'} onClick={() => setView('endeavors')} icon={<Radio className="h-3.5 w-3.5" />} label="Endeavors" count={endeavorCount} />
+          <ToggleBtn active={view === 'enterprises'} onClick={() => setView('enterprises')} icon={<Building2 className="h-3.5 w-3.5" />} label="Enterprises" count={enterprises.length} />
         </div>
+        {selectedEnterprise ? (
+          <button
+            onClick={() => setEnterpriseFilter(null)}
+            className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs hover:bg-white/5"
+            style={{ borderColor: '#99ccff44', color: '#99ccff' }}
+          >
+            <Building2 className="h-3 w-3" />
+            {selectedEnterprise.name ?? selectedEnterprise.domain}
+            <X className="h-3 w-3" />
+          </button>
+        ) : null}
       </section>
+
+      {/* ─── Search (endeavors view only) ────────────────────────────── */}
+      {view === 'endeavors' ? (
+        <section className="mb-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: '#7788aa' }} />
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search Endeavors — e.g. helpdna, hayes, ministry"
+              className="w-full rounded border bg-black/20 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-white/30"
+              style={{ borderColor: '#ffffff20', color: '#eef2ff' }}
+            />
+          </div>
+        </section>
+      ) : null}
 
       {/* ─── Directory grid ─────────────────────────────────────────── */}
       <section className="mb-8">
@@ -155,9 +203,19 @@ export default function ConnectPage() {
             <AlertCircle className="mr-2 inline h-4 w-4" />
             {directoryError}
           </div>
+        ) : view === 'enterprises' ? (
+          enterprises.length === 0 ? (
+            <div className="py-12 text-center text-sm" style={{ color: '#7788aa' }}>No enterprises in the directory</div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {enterprises.map(ent => (
+                <EnterpriseCard key={ent.id ?? ent.domain} ent={ent} onPick={() => pickEnterprise(ent)} />
+              ))}
+            </div>
+          )
         ) : results.length === 0 ? (
           <div className="py-12 text-center text-sm" style={{ color: '#7788aa' }}>
-            {query ? `No Endeavors match "${query}"` : 'Directory is empty'}
+            {query ? `No Endeavors match "${query}"` : selectedEnterprise ? `No endeavors under ${selectedEnterprise.name ?? selectedEnterprise.domain}` : 'Directory is empty'}
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -202,6 +260,66 @@ export default function ConnectPage() {
         </form>
       </section>
     </div>
+  )
+}
+
+function ToggleBtn({
+  active, onClick, icon, label, count,
+}: { active: boolean; onClick: () => void; icon: ReactNode; label: string; count: number }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition"
+      style={
+        active
+          ? { background: '#99ccff22', color: '#99ccff' }
+          : { color: '#7788aa' }
+      }
+    >
+      {icon}
+      {label}
+      <span className="rounded-full px-1.5 text-[10px]" style={{ background: '#ffffff15', color: active ? '#99ccff' : '#7788aa' }}>
+        {count}
+      </span>
+    </button>
+  )
+}
+
+function EnterpriseCard({ ent, onPick }: { ent: EnterpriseRef; onPick: () => void }) {
+  const accent = (ent.ministryStatus && STATUS_COLOR[ent.ministryStatus]) || '#7788aa'
+  return (
+    <button
+      onClick={onPick}
+      className="group block rounded-lg border p-4 text-left transition hover:border-white/30"
+      style={{ borderColor: '#ffffff15' }}
+    >
+      <div className="mb-2 flex items-start justify-between">
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded"
+          style={{ background: `${accent}22`, color: accent }}
+        >
+          <Building2 className="h-5 w-5" />
+        </div>
+        {ent.ministryStatus ? (
+          <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+            style={{ background: `${accent}22`, color: accent }}
+          >
+            {ent.ministryStatus}
+          </span>
+        ) : null}
+      </div>
+      <div className="mb-1 font-medium" style={{ color: '#eef2ff' }}>
+        {ent.name ?? ent.domain}
+      </div>
+      <div className="mb-2 font-mono text-xs" style={{ color: '#7788aa' }}>
+        {ent.domain}
+      </div>
+      <p className="inline-flex items-center gap-1 text-xs" style={{ color: '#99ccff' }}>
+        {ent.hostsEndeavors ?? 0} endeavor{ent.hostsEndeavors === 1 ? '' : 's'}
+        <ChevronRight className="h-3 w-3 opacity-50 transition group-hover:translate-x-0.5 group-hover:opacity-100" />
+      </p>
+    </button>
   )
 }
 

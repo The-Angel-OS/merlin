@@ -13,7 +13,7 @@ import { appStorage } from '@/lib/storage'
 import {
   LayoutDashboard, Radio, Image, Sparkles, Youtube, Key, Activity,
   Camera, Film, ChevronDown, ChevronRight, Wifi, WifiOff,
-  PanelLeftClose, PanelLeft, Upload, ExternalLink,
+  PanelLeftClose, PanelLeft, Upload, ExternalLink, Home,
 } from 'lucide-react'
 
 interface Tenant { id: string; name: string; slug: string; domain?: string }
@@ -37,6 +37,7 @@ const NAV: NavSection[] = [
   {
     title: 'Bridge', accent: '#f5a623',
     items: [
+      { href: '/',    label: 'Home',         icon: Home },
       { href: '/',    label: 'Dashboard',    icon: LayoutDashboard },
       { href: '/log', label: 'Activity Log', icon: Activity },
     ],
@@ -72,7 +73,7 @@ const NAV: NavSection[] = [
     items: [
       { href: '/youtube', label: 'YouTube',       icon: Youtube },
       { href: '/keys',    label: 'Keys & Config', icon: Key },
-      { href: '/learn',   label: 'System Guide',  icon: Sparkles },
+      { href: '/learn',   label: 'Learn',  icon: Sparkles },
     ],
   },
 ]
@@ -268,12 +269,12 @@ export default function Sidebar({
     }
     load()
     const onUp = () => load()
-    window.addEventListener('nimue:uploader', onUp)
+    window.addEventListener('merlin:uploader', onUp)
     const iv = setInterval(load, 5_000)
     return () => {
       cancelled = true
       clearInterval(iv)
-      window.removeEventListener('nimue:uploader', onUp)
+      window.removeEventListener('merlin:uploader', onUp)
     }
   }, [])
 
@@ -299,15 +300,21 @@ export default function Sidebar({
         'flex items-center border-b border-border/60 shrink-0',
         collapsed ? 'justify-center py-3 px-2' : 'gap-2.5 px-4 py-3',
       )}>
-        <div className="size-7 rounded-md bg-gradient-to-br from-lcars-amber to-lcars-orange flex items-center justify-center shadow-sm shadow-lcars-amber/30 shrink-0">
-          <span className="text-black font-bold text-sm">M</span>
-        </div>
-        {!collapsed && (
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-mono uppercase tracking-widest font-semibold">MERLIN</div>
-            <div className="text-[9px] font-mono text-muted-foreground">Angel OS Media Server</div>
+        <Link
+          href="/"
+          title="Home"
+          className={cn('flex items-center min-w-0 hover:opacity-90 transition-opacity', collapsed ? '' : 'gap-2.5 flex-1')}
+        >
+          <div className="size-7 rounded-md bg-gradient-to-br from-lcars-amber to-lcars-orange flex items-center justify-center shadow-sm shadow-lcars-amber/30 shrink-0">
+            <span className="text-black font-bold text-sm">M</span>
           </div>
-        )}
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-mono uppercase tracking-widest font-semibold">MERLIN</div>
+              <div className="text-[9px] font-mono text-muted-foreground">Angel OS Media Server</div>
+            </div>
+          )}
+        </Link>
         {!collapsed && (
           <span
             className="size-2 rounded-full"
@@ -330,7 +337,7 @@ export default function Sidebar({
           >
             <Radio className="size-3 text-lcars-amber shrink-0" />
             <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground truncate flex-1">
-              {tenant?.name || 'Select Enterprise'}
+              {tenant?.name || 'Select Endeavor'}
             </span>
             <ChevronDown className="size-3 text-muted-foreground shrink-0" />
           </button>
@@ -342,7 +349,7 @@ export default function Sidebar({
                 style={{ backgroundColor: 'var(--card)' }}
               >
                 <div className="px-3 py-1.5 border-b border-border/60 text-[9px] font-mono uppercase tracking-widest text-lcars-amber">
-                  Enterprise Registry
+                  Endeavors
                 </div>
                 <div className="max-h-56 overflow-y-auto">
                   {tenants.length === 0 ? (

@@ -1,11 +1,11 @@
 /**
- * Nimue — Endeavor Authentication
+ * Merlin — Endeavor Authentication
  *
- * Mirrors Angel OS Core auth (Payload session/JWT) exactly. Nimue is a remote
+ * Mirrors Angel OS Core auth (Payload session/JWT) exactly. Merlin is a remote
  * Payload session holder, not a foreign client. We do not invent a new token
  * format — we store Payload's JWT + cookie and replay them.
  *
- * Multi-Endeavor: Nimue remembers sessions for every Endeavor the user has
+ * Multi-Endeavor: Merlin remembers sessions for every Endeavor the user has
  * signed into. Switching is a local state swap — no network.
  *
  *   { endeavorSlug → { jwt, expiresAt, user } }
@@ -47,8 +47,8 @@ export interface LoginInput {
 
 // ─── Storage keys ───────────────────────────────────────────────────────────
 
-const STORAGE_KEY_SESSIONS = 'nimue-endeavor-sessions'
-const STORAGE_KEY_ACTIVE = 'nimue-endeavor-active'
+const STORAGE_KEY_SESSIONS = 'merlin-endeavor-sessions'
+const STORAGE_KEY_ACTIVE = 'merlin-endeavor-active'
 
 // ─── Events ─────────────────────────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ function emit(ev: AuthEvent) {
   // Also dispatch a DOM CustomEvent so non-React code can subscribe.
   if (typeof window !== 'undefined') {
     try {
-      window.dispatchEvent(new CustomEvent('nimue:auth', { detail: ev }))
+      window.dispatchEvent(new CustomEvent('merlin:auth', { detail: ev }))
     } catch {
       /* ignore */
     }

@@ -1,5 +1,5 @@
 /**
- * Nimue — Photo Inventory Queue
+ * Merlin — Photo Inventory Queue
  *
  * IndexedDB-backed queue for field inventory workflows.
  * Works offline; survives page reloads; dedupes by SHA-256.
@@ -9,7 +9,7 @@
  *                     ↘ error (retryable with exponential backoff)
  *
  * Storage:
- *   - DB: "nimue-inventory", v1
+ *   - DB: "merlin-inventory", v1
  *   - Stores: "items" (primary), "batches" (metadata)
  */
 import { openDB, type IDBPDatabase } from 'idb'
@@ -78,7 +78,7 @@ export interface InventoryBatch {
 
 // ─── DB ─────────────────────────────────────────────────────────────────────
 
-const DB_NAME = 'nimue-inventory'
+const DB_NAME = 'merlin-inventory'
 const DB_VERSION = 1
 
 let dbPromise: Promise<IDBPDatabase> | null = null

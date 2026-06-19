@@ -16,7 +16,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // Mirror to console for remote-inspected sessions.
-    console.error('[nimue] client exception:', error)
+    console.error('[merlin] client exception:', error)
   }, [error])
 
   return (

@@ -101,11 +101,11 @@ export const storage = {
 // ─── Typed accessors for common values ───────────────────────────────────────
 
 export const appStorage = {
-  getTenant: () => storage.getSync<string>('nimue-tenant'),
-  setTenant: (slug: string) => storage.set('nimue-tenant', slug),
+  getTenant: () => storage.getSync<string>('merlin-tenant'),
+  setTenant: (slug: string) => storage.set('merlin-tenant', slug),
 
-  getUsername: () => storage.getSync<string>('nimue-username', 'Captain'),
-  setUsername: (name: string) => storage.set('nimue-username', name),
+  getUsername: () => storage.getSync<string>('merlin-username', 'Captain'),
+  setUsername: (name: string) => storage.set('merlin-username', name),
 
   getBookLang: (slug: string) => storage.getSync<string>(`book-lang-${slug}`, 'en'),
   setBookLang: (slug: string, lang: string) => storage.set(`book-lang-${slug}`, lang),
@@ -113,6 +113,6 @@ export const appStorage = {
   getBookProgress: (slug: string) => storage.getSync<number>(`book-progress-${slug}`, 1),
   setBookProgress: (slug: string, chapter: number) => storage.set(`book-progress-${slug}`, chapter),
 
-  getSettings: () => storage.getSync<Record<string, unknown>>('nimue-settings', {}),
-  setSettings: (s: Record<string, unknown>) => storage.set('nimue-settings', s),
+  getSettings: () => storage.getSync<Record<string, unknown>>('merlin-settings', {}),
+  setSettings: (s: Record<string, unknown>) => storage.set('merlin-settings', s),
 }

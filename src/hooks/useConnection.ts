@@ -1,6 +1,6 @@
 'use client'
 /**
- * useConnection — React hook for Nimue's federation connection state.
+ * useConnection — React hook for Merlin's federation connection state.
  *
  * Owns a small state machine:
  *
@@ -10,7 +10,7 @@
  *
  * Exposes the active Endeavor session, the remembered sessions list, the
  * federation directory, and the primary actions (login / logout / switch).
- * Subscribes to `nimue:auth` so UI refreshes instantly on auth changes.
+ * Subscribes to `merlin:auth` so UI refreshes instantly on auth changes.
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -90,11 +90,11 @@ export function useConnection(): UseConnectionValue {
     refreshDirectory()
     const onAuth = () => refreshAuth()
     if (typeof window !== 'undefined') {
-      window.addEventListener('nimue:auth', onAuth)
+      window.addEventListener('merlin:auth', onAuth)
     }
     return () => {
       if (typeof window !== 'undefined') {
-        window.removeEventListener('nimue:auth', onAuth)
+        window.removeEventListener('merlin:auth', onAuth)
       }
     }
   }, [refreshAuth, refreshDirectory])

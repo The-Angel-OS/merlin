@@ -173,7 +173,7 @@ export default function LeoPage() {
                 mode === 'hashtags' ? 'Video title...' :
                 'Click send to process attached content'
               }
-              className="flex-1"
+              className="flex-1 text-white placeholder:text-white/45"
             />
             <Button onClick={send} disabled={loading} size="icon" variant="lcars">
               <Send className="size-4" />

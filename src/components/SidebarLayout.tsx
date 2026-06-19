@@ -20,14 +20,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
   // Persist collapsed state
   useEffect(() => {
-    const stored = localStorage.getItem('nimue-sidebar-collapsed')
+    const stored = localStorage.getItem('merlin-sidebar-collapsed')
     if (stored === 'true') setCollapsed(true)
   }, [])
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed(c => {
       const next = !c
-      localStorage.setItem('nimue-sidebar-collapsed', String(next))
+      localStorage.setItem('merlin-sidebar-collapsed', String(next))
       return next
     })
   }, [])
@@ -59,8 +59,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   // Command palette event bridge
   useEffect(() => {
     const open = () => setPaletteOpen(true)
-    window.addEventListener('nimue:palette', open)
-    return () => window.removeEventListener('nimue:palette', open)
+    window.addEventListener('merlin:palette', open)
+    return () => window.removeEventListener('merlin:palette', open)
   }, [])
 
   // Boot the inventory uploader once per session — it lazy-loads to keep
@@ -75,9 +75,9 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         // and we don't want an unhandled rejection to crash the app shell.
         Promise.resolve()
           .then(() => mod.startUploader())
-          .catch(err => { console.warn('[nimue] uploader boot failed:', err) })
+          .catch(err => { console.warn('[merlin] uploader boot failed:', err) })
       })
-      .catch(err => { console.warn('[nimue] uploader import failed:', err) })
+      .catch(err => { console.warn('[merlin] uploader import failed:', err) })
     return () => { cancelled = true }
   }, [])
 

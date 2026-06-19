@@ -1,5 +1,5 @@
 /**
- * Nimue — Inventory Uploader
+ * Merlin — Inventory Uploader
  *
  * Polls the queue, uploads items to Angel OS, handles retry + backoff.
  * Singleton: call startUploader() once from the app shell.
@@ -52,7 +52,7 @@ function emit(ev: UploaderEvent) {
   // Also dispatch a DOM CustomEvent so React components can listen via a hook
   if (typeof window !== 'undefined') {
     try {
-      window.dispatchEvent(new CustomEvent('nimue:uploader', { detail: ev }))
+      window.dispatchEvent(new CustomEvent('merlin:uploader', { detail: ev }))
     } catch { /* noop */ }
   }
 }

@@ -1,5 +1,5 @@
 /**
- * store.ts — Atomic JSON file store for NIMUE Command Center
+ * store.ts — Atomic JSON file store for MERLIN Command Center
  * Zero native deps. All data in C:\Dev\mediaserver\data\
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
@@ -67,11 +67,14 @@ export interface Settings {
   angelsApiUrl: string
   angelsApiKey: string
   anthropicApiKey: string
+  geminiApiKey: string
   watchedDirs: string[]
   screenshotsDir: string
   masterDescription: string
   port: number
   tvMode: boolean
+  /** Last public tunnel URL (cloudflared quick tunnel). Ephemeral — re-issued each start_tunnel. */
+  tunnelUrl: string
 }
 
 const SETTINGS_DEFAULTS: Settings = {
@@ -83,6 +86,7 @@ const SETTINGS_DEFAULTS: Settings = {
   angelsApiUrl: 'https://www.spacesangels.com',
   angelsApiKey: '',
   anthropicApiKey: '',
+  geminiApiKey: '',
   watchedDirs: [
     'C:\\Users\\kenne\\Downloads',
     'C:\\Users\\kenne\\Videos',
@@ -93,6 +97,7 @@ const SETTINGS_DEFAULTS: Settings = {
   masterDescription: '',
   port: 3030,
   tvMode: false,
+  tunnelUrl: '',
 }
 
 export function getSettings(): Settings {

@@ -1,5 +1,5 @@
 /**
- * Nimue — Adaptive Content Client
+ * Merlin — Adaptive Content Client
  *
  * Talks to Angel OS Core's `/api/content-ops/adapt` endpoint (Sprint 46
  * on the mothership). Content-addressed + tenant-voice-aware. Used by
