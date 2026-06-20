@@ -1,7 +1,13 @@
 /**
- * Generate Merlin's web + PWA icons from resources/source-crest.png.
+ * Generate Merlin's web + PWA icons from a source crest.
  *
  *   node scripts/generate-icons.mjs
+ *
+ * Default = the canonical The Angel OS emblem. The source is overridable to
+ * WHITE-LABEL a build for a specific Core endeavor/portal (build-time branding):
+ *   ICON_SRC=resources/my-crest.png node scripts/generate-icons.mjs
+ * Runtime "inherit the connected endeavor's branding" is a separate in-app
+ * theming concern (the PWA can re-skin live), not this generator.
  *
  * Emits:
  *   public/icon-192.png, public/icon-512.png        — manifest "any" (transparent)
@@ -19,7 +25,8 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const SRC = resolve(ROOT, 'resources/source-crest.png')
+const DEFAULT_SRC = 'resources/TheAngelOS_TransparentSocial.png'
+const SRC = resolve(ROOT, process.env.ICON_SRC || process.argv[2] || DEFAULT_SRC)
 const BG = { r: 0x0a, g: 0x0a, b: 0x14, alpha: 1 }
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 }
 
