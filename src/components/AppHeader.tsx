@@ -9,6 +9,7 @@ import { useEffect } from 'react'
 import { Search, Bell, Sparkles, Wifi, WifiOff, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ConnectionPill from '@/components/ConnectionPill'
+import ConnectionStatus from '@/components/ConnectionStatus'
 
 type Crumb = { label: string; color: string; parent?: string; parentColor?: string }
 
@@ -87,6 +88,8 @@ export default function AppHeader({
           >
             {crumb?.label || 'MERLIN'}
           </span>
+          {/* Federation connection readout: Connection: <Endeavor> · Enterprise: <Enterprise> */}
+          <ConnectionStatus />
         </div>
 
         {/* Search / Command Palette trigger */}
