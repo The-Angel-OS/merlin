@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react'
 import { useConnection } from '@/hooks/useConnection'
 import { probeEndeavor, type EndeavorManifest } from '@/lib/federation'
 import {
-  ArrowLeft, Radio, ShieldCheck, AlertCircle, LogIn, Sparkles,
+  ArrowLeft, Radio, ShieldCheck, AlertCircle, LogIn, Sparkles, Building2, Tag,
 } from 'lucide-react'
 
 export default function EndeavorDetailPage() {
@@ -34,6 +34,18 @@ export default function EndeavorDetailPage() {
   const fromDirectory = directory?.endeavors.find(e => e.slug === slug)
   const domain = overrideDomain ?? fromDirectory?.domain ?? `${slug}.spacesangels.com`
   const alreadySignedIn = sessions.some(s => s.slug === slug)
+
+  // Resolve the hosting Enterprise (Discovery-tab parity): by id, then host-domain.
+  const enterprise =
+    (fromDirectory?.enterpriseId
+      ? directory?.enterprises.find(x => (x.id ?? x.domain) === fromDirectory.enterpriseId)
+      : undefined) ??
+    (fromDirectory?.hostedOn
+      ? directory?.enterprises.find(x => x.domain === fromDirectory.hostedOn)
+      : undefined)
+  const enterpriseName = enterprise?.name ?? enterprise?.domain ?? manifest?.enterpriseDomain ?? fromDirectory?.hostedOn
+  const enterpriseDomain = enterprise?.domain ?? manifest?.enterpriseDomain
+  const category = manifest?.publicProfile?.category ?? fromDirectory?.publicProfile?.category
 
   // Probe the Endeavor on mount.
   useEffect(() => {
@@ -83,6 +95,27 @@ export default function EndeavorDetailPage() {
             <div className="font-mono text-xs" style={{ color: '#7788aa' }}>{domain}</div>
           </div>
         </div>
+
+        {/* Hosting Enterprise + category — Discovery-tab parity. */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+          {enterpriseName ? (
+            <span className="inline-flex items-center gap-1.5" style={{ color: '#99ccff' }}>
+              <Building2 className="h-3.5 w-3.5" />
+              <span style={{ color: '#7788aa' }}>Hosted by</span>
+              <span style={{ color: '#cdd9ee' }}>{enterpriseName}</span>
+              {enterpriseDomain && enterpriseDomain !== enterpriseName ? (
+                <span className="font-mono" style={{ color: '#556677' }}>· {enterpriseDomain}</span>
+              ) : null}
+            </span>
+          ) : null}
+          {category ? (
+            <span className="inline-flex items-center gap-1.5" style={{ color: '#cc99cc' }}>
+              <Tag className="h-3.5 w-3.5" />
+              <span className="capitalize">{category.replace(/-/g, ' ')}</span>
+            </span>
+          ) : null}
+        </div>
+
         {manifest?.publicProfile?.about ? (
           <p className="mt-3 text-sm" style={{ color: '#aabbcc' }}>
             {manifest.publicProfile.about}
