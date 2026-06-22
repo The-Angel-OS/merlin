@@ -1,5 +1,23 @@
 import { NextResponse } from 'next/server'
-import { registerNode } from '@/lib/node-bus'
+import { registerNode, startNodeBusLoop } from '@/lib/node-bus'
+import { getSettings } from '@/lib/store'
+
+/**
+ * GET /api/node/register — current bus binding for this node (is it locked on?).
+ * Never returns the token itself — only whether one is held + its expiry.
+ */
+export async function GET() {
+  startNodeBusLoop() // idempotent — start the heartbeat/poll loop on first touch (nodejs runtime)
+  const s = getSettings()
+  return NextResponse.json({
+    boundEndeavor: s.boundEndeavor || '',
+    boundAngelsUrl: s.boundAngelsUrl || '',
+    busChannel: s.busChannel || '',
+    busSpaceId: s.busSpaceId || '',
+    hasToken: Boolean(s.nodeToken),
+    nodeTokenExpiresAt: s.nodeTokenExpiresAt || '',
+  })
+}
 
 /**
  * POST /api/node/register — lock this node onto an endeavor + register UP to Core.
@@ -20,6 +38,7 @@ export async function POST(req: Request) {
   if (!endeavor) return NextResponse.json({ error: 'endeavor is required' }, { status: 400 })
 
   try {
+    startNodeBusLoop() // ensure the heartbeat/poll loop is running once a node locks on
     const r = await registerNode({ endeavor, angelsUrl: body.angelsUrl, key: body.key })
     if (!r.ok) return NextResponse.json({ error: `core ${r.status}`, detail: r.core }, { status: r.status === 400 ? 400 : 502 })
     return NextResponse.json({ ok: true, endeavor, channel: r.core.channel, core: r.core })

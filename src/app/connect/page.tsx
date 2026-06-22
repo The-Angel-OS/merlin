@@ -12,12 +12,12 @@
  */
 
 import Link from 'next/link'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useConnection } from '@/hooks/useConnection'
 import type { EndeavorRef, EnterpriseRef } from '@/lib/federation'
 import {
   Search, Radio, CheckCircle2, AlertCircle, Globe,
-  ChevronRight, Wifi, WifiOff, RefreshCw, Building2, X,
+  ChevronRight, Wifi, WifiOff, RefreshCw, Building2, X, Zap, PlugZap, Loader2,
 } from 'lucide-react'
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -128,6 +128,8 @@ export default function ConnectPage() {
               Enter →
             </Link>
           </div>
+          {/* Lock THIS machine (Merlin node) onto the signed-in endeavor + start beaming. */}
+          <NodeLockOn slug={active.slug} name={active.name} domain={active.domain} />
         </section>
       ) : null}
 
@@ -259,6 +261,101 @@ export default function ConnectPage() {
           </button>
         </form>
       </section>
+    </div>
+  )
+}
+
+/**
+ * NodeLockOn — bind THIS Merlin node to the signed-in endeavor.
+ *
+ * Posts to /api/node/register, which registers UP to Core and persists the bus
+ * binding (channel + minted node token) so the heartbeat + command-poll loop runs.
+ * Once locked, the node is "beaming": green in the endeavor's MerlinControl block and
+ * answering LEO's list_node_files over its bus channel.
+ */
+type NodeStatus = { boundEndeavor: string; busChannel: string; hasToken: boolean }
+
+function NodeLockOn({ slug, name, domain }: { slug: string; name: string; domain: string }) {
+  const [status, setStatus] = useState<NodeStatus | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/node/register', { method: 'GET' })
+      if (res.ok) setStatus((await res.json()) as NodeStatus)
+    } catch {
+      /* node status is non-critical */
+    }
+  }, [])
+
+  useEffect(() => { void refresh() }, [refresh])
+
+  const lockedHere = status?.boundEndeavor === slug && status?.hasToken
+
+  const lockOn = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/node/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endeavor: slug, angelsUrl: `https://${domain}` }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(typeof data?.error === 'string' ? data.error : `register failed (${res.status})`)
+      } else {
+        await refresh()
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'register failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t pt-3" style={{ borderColor: '#22cc8822' }}>
+      {lockedHere ? (
+        <div className="flex items-center justify-between">
+          <span className="inline-flex items-center gap-2 text-sm" style={{ color: '#22cc88' }}>
+            <Zap className="h-4 w-4" />
+            This machine is locked on · beaming to <code className="font-mono text-xs" style={{ color: '#aabbcc' }}>#{status?.busChannel}</code>
+          </span>
+          <button
+            onClick={lockOn}
+            disabled={busy}
+            className="rounded border px-2.5 py-1 text-xs hover:bg-white/5 disabled:opacity-50"
+            style={{ borderColor: '#ffffff20', color: '#7788aa' }}
+          >
+            {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Re-register'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs" style={{ color: '#7788aa' }}>
+            {status?.boundEndeavor && status.boundEndeavor !== slug
+              ? `This node is bound to "${status.boundEndeavor}" — re-lock onto ${name}?`
+              : `Make this machine a Merlin node for ${name}.`}
+          </span>
+          <button
+            onClick={lockOn}
+            disabled={busy}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded border px-3 py-1.5 text-sm hover:bg-white/5 disabled:opacity-50"
+            style={{ borderColor: '#f5a62344', color: '#f5a623' }}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlugZap className="h-4 w-4" />}
+            Lock this node on
+          </button>
+        </div>
+      )}
+      {error ? (
+        <p className="mt-2 text-xs" style={{ color: '#cc4444' }}>
+          <AlertCircle className="mr-1 inline h-3 w-3" />
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }
