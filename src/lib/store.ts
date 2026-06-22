@@ -75,6 +75,19 @@ export interface Settings {
   tvMode: boolean
   /** Last public tunnel URL (cloudflared quick tunnel). Ephemeral — re-issued each start_tunnel. */
   tunnelUrl: string
+  // ─── Node bus binding (docs/architecture/NODE_BUS_COMMS.md on Core) ──────────
+  /** The endeavor this node is locked onto (slug). Set on register; drives the heartbeat. */
+  boundEndeavor: string
+  /** Core base URL this node registers/polls against. */
+  boundAngelsUrl: string
+  /** Minted node JWT (used as payload-token cookie to poll + post). Refreshed each register. */
+  nodeToken: string
+  nodeTokenExpiresAt: string
+  /** The node's dedicated bus channel slug + AI Bus space id (returned by Core register). */
+  busChannel: string
+  busSpaceId: string
+  /** Poll cursor — newest message createdAt already processed (ISO). */
+  busCursor: string
 }
 
 const SETTINGS_DEFAULTS: Settings = {
@@ -98,6 +111,13 @@ const SETTINGS_DEFAULTS: Settings = {
   port: 3030,
   tvMode: false,
   tunnelUrl: '',
+  boundEndeavor: '',
+  boundAngelsUrl: '',
+  nodeToken: '',
+  nodeTokenExpiresAt: '',
+  busChannel: '',
+  busSpaceId: '',
+  busCursor: '',
 }
 
 export function getSettings(): Settings {

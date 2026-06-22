@@ -1,5 +1,6 @@
 import os from 'node:os'
 import { loadRoots } from '@/lib/media-roots'
+import { getSettings } from '@/lib/store'
 
 /**
  * buildNodeCatalog — what this Merlin node offers the federation: opt-in shared
@@ -42,6 +43,9 @@ export async function buildNodeCatalog() {
     .map((r) => ({ path: r.path, label: r.label, icon: r.icon }))
 
   const ollama = await probeOllama()
+  // Bulk/streaming reach (movies, cameras, big files) rides the tunnel; command/control
+  // rides the bus. Advertise the tunnel URL when one is live so Core knows the bulk path.
+  const tunnelUrl = getSettings().tunnelUrl || undefined
 
   const capabilities = [
     ...(shared.length ? ['media'] : []),
@@ -58,6 +62,7 @@ export async function buildNodeCatalog() {
     capabilities,
     drives: shared,
     compute: ollama,
+    tunnelUrl,
     version: '2.0.0',
   }
 }
