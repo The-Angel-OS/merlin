@@ -62,6 +62,30 @@ export function isPathAllowed(dir: string): boolean {
   })
 }
 
+/**
+ * Roots explicitly SHARED up to the federation (opt-in, default false) — a
+ * STRICTER set than getEnabledRoots(). This is the scoped-grant boundary for any
+ * skill invoked by a peer (LEO over federation): a node exposes only what its
+ * owner deliberately marked `shared`, never its whole disk.
+ */
+export function getSharedRoots(): MediaRootConfig[] {
+  return loadRoots().roots.filter(r => r.shared && r.enabled && fs.existsSync(r.path))
+}
+
+/**
+ * Federation access gate: is `dir` inside a SHARED root? Use this — NOT
+ * isPathAllowed (which uses the laxer enabled set) — to clamp any externally
+ * triggered file operation. Returns false for paths outside every shared root,
+ * so a peer can never list `C:\Users\...` just because it's enabled locally.
+ */
+export function isPathShared(dir: string): boolean {
+  const target = norm(dir)
+  return getSharedRoots().some(r => {
+    const root = norm(r.path)
+    return target === root || target.startsWith(root + path.sep) || target.startsWith(root + '/')
+  })
+}
+
 /** The minimum file size (bytes) that applies to files under `dir`. */
 export function minSizeBytesFor(dir: string): number {
   const target = norm(dir)
