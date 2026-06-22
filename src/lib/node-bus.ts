@@ -145,6 +145,58 @@ export async function pollOnce(): Promise<{ handled: number }> {
   return { handled }
 }
 
+export type StreamMessage = {
+  id: number | string
+  kind: string // 'node-command' | 'node-result' | messageType
+  tool?: string
+  requestId?: string
+  text: string
+  author?: string
+  createdAt?: string
+}
+
+/**
+ * Read recent messages on this node's bus channel for the LEO comm-stream inspector.
+ * Read-only — does NOT advance the poll cursor (so it never steals commands from the loop).
+ */
+export async function readNodeStream(limit = 40): Promise<{
+  ok: boolean
+  bound: boolean
+  channel?: string
+  messages: StreamMessage[]
+  error?: string
+}> {
+  const s = getSettings()
+  if (!s.boundEndeavor || !s.nodeToken || !s.busChannel || !s.busSpaceId) {
+    return { ok: true, bound: false, messages: [] }
+  }
+  const qs = new URLSearchParams({ spaceId: s.busSpaceId, channel: s.busChannel, limit: String(limit) })
+  try {
+    const res = await coreFetch(s.boundAngelsUrl, `/api/ai-bus/poll?${qs.toString()}`, s.nodeToken)
+    if (!res.ok) return { ok: false, bound: true, channel: s.busChannel, messages: [], error: `poll ${res.status}` }
+    const data = (await res.json()) as { messages?: Array<Record<string, unknown>> }
+    const messages: StreamMessage[] = (data.messages || []).map((m) => {
+      const meta = (m.metadata || {}) as { kind?: string; tool?: string; requestId?: string }
+      const content = m.content as { text?: string } | string | undefined
+      const text = typeof content === 'string' ? content : content?.text || ''
+      const author = m.author as { name?: string; email?: string } | string | undefined
+      return {
+        id: m.id as number,
+        kind: meta.kind || (m.messageType as string) || 'message',
+        tool: meta.tool,
+        requestId: meta.requestId,
+        text,
+        author: typeof author === 'object' ? author?.name || author?.email : (author as string),
+        createdAt: m.createdAt as string,
+      }
+    })
+    messages.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
+    return { ok: true, bound: true, channel: s.busChannel, messages }
+  } catch (e) {
+    return { ok: false, bound: true, messages: [], error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
 /** Process-wide singleton so HMR / multiple imports don't start parallel loops. */
 declare global {
   // eslint-disable-next-line no-var
