@@ -11,8 +11,10 @@ import { motion } from 'framer-motion'
 import {
   Activity, Radio, Cpu, Wifi, ArrowRight, Sparkles, Camera,
   RefreshCw, Youtube, Server, Upload, FolderOpen, HardDrive, ExternalLink,
+  Zap, PlugZap,
 } from 'lucide-react'
 import { useInventoryQueue } from '@/hooks/useInventoryQueue'
+import { useConnection } from '@/hooks/useConnection'
 
 const ANGELS_PORTAL = process.env.NEXT_PUBLIC_ANGELS_URL || 'https://spacesangels.com'
 
@@ -128,6 +130,10 @@ export default function NodeDashboard() {
   const [sys, setSys] = useState<SystemData | null>(null)
   const [cameras, setCameras] = useState<Cam[]>([])
   const { stats: queue } = useInventoryQueue()
+  // The lock-on state — which Endeavor this Merlin is bound to. The whole home
+  // screen leads with this: connected = locked on + beaming, else an invite.
+  const { active } = useConnection()
+  const lockedOn = Boolean(active)
 
   useEffect(() => {
     const load = () => fetch('/api/system').then(r => r.json()).then(setSys).catch(() => {})
@@ -143,6 +149,62 @@ export default function NodeDashboard() {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
+      {/* ── Connection state — the lock-on metaphor leads the whole screen ── */}
+      <motion.div variants={item}>
+        <Link
+          href="/connect"
+          className="group relative flex items-center gap-4 overflow-hidden rounded-xl border p-4 transition-colors"
+          style={{
+            borderColor: lockedOn ? '#22cc8840' : '#f5a62340',
+            background: lockedOn ? '#22cc880c' : '#f5a6230c',
+          }}
+        >
+          {/* state glow */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-60"
+            style={{ background: `radial-gradient(120px 60px at 12% 50%, ${lockedOn ? '#22cc88' : '#f5a623'}18, transparent)` }}
+          />
+          <div
+            className="relative flex size-11 shrink-0 items-center justify-center rounded-lg"
+            style={{ background: lockedOn ? '#22cc8818' : '#f5a62318', color: lockedOn ? '#22cc88' : '#f5a623' }}
+          >
+            {lockedOn ? <Zap className="size-5" /> : <PlugZap className="size-5" />}
+            {lockedOn && (
+              <span
+                className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border border-background"
+                style={{ background: '#22cc88', animation: 'liveness-dot-pulse 1.2s ease-in-out infinite' }}
+              />
+            )}
+          </div>
+          <div className="relative min-w-0 flex-1">
+            <div
+              className="text-[10px] font-mono uppercase tracking-widest"
+              style={{ color: lockedOn ? '#22cc8899' : '#f5a62399' }}
+            >
+              {lockedOn ? 'Locked on · Beaming telemetry' : 'Not connected'}
+            </div>
+            <div className="truncate text-lg font-mono font-semibold leading-tight">
+              {lockedOn ? (active?.domain || active?.slug) : 'Lock onto an Endeavor'}
+            </div>
+            <div className="truncate text-[11px] text-muted-foreground">
+              {lockedOn
+                ? `Signed in as ${active?.user?.email ?? '—'} · this node is contributing to the federation`
+                : 'Connect this Merlin to an Endeavor to join the federation and start sharing.'}
+            </div>
+          </div>
+          <div
+            className="relative hidden shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider transition-colors sm:flex"
+            style={{
+              background: lockedOn ? '#22cc8814' : '#f5a62314',
+              color: lockedOn ? '#22cc88' : '#f5a623',
+            }}
+          >
+            {lockedOn ? 'Manage' : 'Connect a Merlin'}
+            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </Link>
+      </motion.div>
+
       {/* ── Hero ── */}
       <motion.div variants={item} className="flex items-end justify-between">
         <div>
