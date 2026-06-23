@@ -119,6 +119,9 @@ export interface Settings {
   sentinelDevice: string
   /** Window TITLE to monitor instead of a camera (gdigrab, e.g. a Bluestacks viewer). Wins over device. */
   sentinelWindow: string
+  /** Multi-source: specs like "camera:Integrated Camera" / "window:Bluestacks". When
+   *  non-empty, supersedes the single device/window — each source has its own baseline. */
+  sentinelSources: string[]
   /** Poll cadence in ms (min 1000). */
   sentinelIntervalMs: number
   /** Change threshold 0..1 (mean abs grayscale diff). ~0.04 = 4% of pixels moved. */
@@ -157,6 +160,7 @@ const SETTINGS_DEFAULTS: Settings = {
   sentinelEnabled: false,
   sentinelDevice: '',
   sentinelWindow: '',
+  sentinelSources: [],
   sentinelIntervalMs: 5000,
   sentinelThreshold: 0.04,
 }
