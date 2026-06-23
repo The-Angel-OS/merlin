@@ -18,17 +18,50 @@ export type NeutralMsg =
   | { role: 'tool'; results: ToolResult[] }
 
 export type ModelReply = { text: string; toolCalls: ToolCall[] }
-export type Provider = 'gemini' | 'anthropic'
+export type Provider = 'gemini' | 'anthropic' | 'ollama'
 
 const ANTHROPIC_MODEL = 'claude-sonnet-4-5'
 const GEMINI_MODEL = 'gemini-2.5-flash' // 2.5 → free implicit prompt caching on a stable prefix
+const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434'
 
-export function pickProvider(s: { geminiApiKey?: string; anthropicApiKey?: string }): {
-  provider: Provider
-  key: string
-} | null {
-  if (s.geminiApiKey) return { provider: 'gemini', key: s.geminiApiKey } // free + funded → first
+export type ProviderPick = { provider: Provider; key: string; model?: string }
+export interface ProviderResolveInput {
+  geminiApiKey?: string
+  anthropicApiKey?: string
+  /** Ollama base URL (default 127.0.0.1:11434). */
+  ollamaUrl?: string
+  /** Preferred local model; falls back to the first installed model. */
+  ollamaModel?: string
+}
+
+/** Sync cloud-only pick (legacy). Prefer resolveProvider for the local fallback. */
+export function pickProvider(s: { geminiApiKey?: string; anthropicApiKey?: string }): ProviderPick | null {
+  if (s.geminiApiKey) return { provider: 'gemini', key: s.geminiApiKey }
   if (s.anthropicApiKey) return { provider: 'anthropic', key: s.anthropicApiKey }
+  return null
+}
+
+/**
+ * Resolve the provider: cloud first (more capable), then LOCAL OLLAMA as the free
+ * fallback when no cloud key is set — config-free "no key → use the local model for
+ * cheap turns." Probes Ollama for an installed model. Returns null only if nothing's
+ * available (no keys + Ollama not running).
+ */
+export async function resolveProvider(s: ProviderResolveInput): Promise<ProviderPick | null> {
+  if (s.geminiApiKey) return { provider: 'gemini', key: s.geminiApiKey }
+  if (s.anthropicApiKey) return { provider: 'anthropic', key: s.anthropicApiKey }
+  const url = s.ollamaUrl || DEFAULT_OLLAMA_URL
+  try {
+    const r = await fetch(`${url}/api/tags`, { signal: AbortSignal.timeout(2500) })
+    if (r.ok) {
+      const d = (await r.json()) as { models?: Array<{ name?: string }> }
+      const models = (d.models || []).map((m) => m.name || '').filter(Boolean)
+      const model = s.ollamaModel && models.includes(s.ollamaModel) ? s.ollamaModel : models[0]
+      if (model) return { provider: 'ollama', key: url, model } // `key` carries the URL for Ollama
+    }
+  } catch {
+    /* not running */
+  }
   return null
 }
 
@@ -38,10 +71,11 @@ export async function callModel(
   system: string,
   messages: NeutralMsg[],
   tools: ToolDef[],
+  model?: string,
 ): Promise<ModelReply> {
-  return provider === 'gemini'
-    ? callGemini(key, system, messages, tools)
-    : callAnthropic(key, system, messages, tools)
+  if (provider === 'gemini') return callGemini(key, system, messages, tools)
+  if (provider === 'ollama') return callOllama(key, model || '', system, messages, tools)
+  return callAnthropic(key, system, messages, tools)
 }
 
 // ─── Anthropic ──────────────────────────────────────────────────────────────
@@ -138,6 +172,42 @@ async function callGemini(key: string, system: string, messages: NeutralMsg[], t
       const fc = p.functionCall as { name: string; args?: Record<string, unknown> }
       return { id: `${fc.name}-${i}`, name: fc.name, input: fc.args || {} }
     })
+  return { text, toolCalls }
+}
+
+// ─── Ollama (local, free fallback) ─────────────────────────────────────────────
+// Native /api/chat with tool support (models like llama3.1+/qwen2.5). `key` is the
+// base URL. Slow on a cold model — generous timeout. Models without tool support
+// just return text (no tool_calls), which the loop handles fine.
+async function callOllama(url: string, model: string, system: string, messages: NeutralMsg[], tools: ToolDef[]): Promise<ModelReply> {
+  if (!model) throw new Error('Ollama: no model available (pull one in System → Resources)')
+  const msgs: Array<Record<string, unknown>> = [{ role: 'system', content: system }]
+  for (const m of messages) {
+    if (m.role === 'user') msgs.push({ role: 'user', content: m.text })
+    else if (m.role === 'assistant') {
+      const tc = m.toolCalls.map((t) => ({ function: { name: t.name, arguments: t.input } }))
+      msgs.push({ role: 'assistant', content: m.text || '', ...(tc.length ? { tool_calls: tc } : {}) })
+    } else {
+      for (const r of m.results) msgs.push({ role: 'tool', content: JSON.stringify(r.output).slice(0, 8000) })
+    }
+  }
+  const oTools = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } }))
+  const res = await fetch(`${url}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages: msgs, tools: oTools, stream: false }),
+    signal: AbortSignal.timeout(120_000),
+  })
+  if (!res.ok) throw new Error(`Ollama HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 300)}`)
+  const data = (await res.json()) as {
+    message?: { content?: string; tool_calls?: Array<{ function: { name: string; arguments: Record<string, unknown> } }> }
+  }
+  const text = (data.message?.content || '').trim()
+  const toolCalls: ToolCall[] = (data.message?.tool_calls || []).map((t, i) => ({
+    id: `${t.function.name}-${i}`,
+    name: t.function.name,
+    input: t.function.arguments || {},
+  }))
   return { text, toolCalls }
 }
 

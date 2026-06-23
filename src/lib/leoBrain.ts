@@ -7,7 +7,7 @@
  * only the injected belt differs. The neutral message format (leoProviders) is the
  * interop contract — keep it identical across embodiments.
  */
-import { pickProvider, callModel, type NeutralMsg, type ToolResult } from './leoProviders'
+import { resolveProvider, callModel, type NeutralMsg, type ToolResult } from './leoProviders'
 
 export type Tool = {
   name: string
@@ -16,7 +16,13 @@ export type Tool = {
   run: (input: Record<string, unknown>) => Promise<unknown>
 }
 
-export type ProviderConfig = { geminiApiKey?: string; anthropicApiKey?: string }
+export type ProviderConfig = {
+  geminiApiKey?: string
+  anthropicApiKey?: string
+  /** Local Ollama fallback (config-free free path when no cloud key). */
+  ollamaUrl?: string
+  ollamaModel?: string
+}
 
 export type BrainResult = {
   messages: NeutralMsg[] // full transcript incl. the new turn(s); caller persists
@@ -35,8 +41,8 @@ export async function runBrain(opts: {
   providerConfig: ProviderConfig
   system: string
 }): Promise<BrainResult> {
-  const picked = pickProvider(opts.providerConfig)
-  if (!picked) throw new Error('No AI key set — add a Gemini or Anthropic key.')
+  const picked = await resolveProvider(opts.providerConfig)
+  if (!picked) throw new Error('No AI available — add a Gemini/Anthropic key or run Ollama locally (System → Resources).')
 
   const working: NeutralMsg[] = [...opts.messages, { role: 'user', text: opts.userText }]
   const defs = opts.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }))
@@ -47,7 +53,7 @@ export async function runBrain(opts: {
 
   while (steps < MAX_STEPS) {
     steps++
-    const reply = await callModel(picked.provider, picked.key, opts.system, working, defs)
+    const reply = await callModel(picked.provider, picked.key, opts.system, working, defs, picked.model)
     if (reply.text) finalText = reply.text
     working.push({ role: 'assistant', text: reply.text, toolCalls: reply.toolCalls })
     if (reply.toolCalls.length === 0) break

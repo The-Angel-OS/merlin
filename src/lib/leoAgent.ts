@@ -31,6 +31,9 @@ export async function runAgent(conversationId: string, userText: string): Promis
       // Accept Angel OS's GOOGLE_AI_API_KEY name as well as GEMINI_API_KEY.
       geminiApiKey: s.geminiApiKey || process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '',
       anthropicApiKey: s.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '',
+      // Local Ollama fallback — used for cheap turns when no cloud key is set.
+      ollamaUrl: process.env.OLLAMA_URL || 'http://127.0.0.1:11434',
+      ollamaModel: process.env.OLLAMA_MODEL || '',
     },
     system: SYSTEM,
   })
