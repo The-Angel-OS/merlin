@@ -64,9 +64,11 @@ export async function snapCamera(device?: string): Promise<SnapResult> {
   if (!chosen) return { ok: false, error: 'no camera device found (is one connected? is ffmpeg installed?)' }
 
   const out = join(tmpdir(), `merlin-snap-${Date.now()}.jpg`)
-  // -rtbufsize cushions webcams that buffer; -frames:v 1 grabs a single frame.
+  // Robust grab: many webcams emit a blank/no first frame, and image2 errors when
+  // muxing multiple frames to one filename — so pull a few warm-up frames with
+  // `-update 1` (each overwrites the file) and keep the last good one.
   const { code, stderr } = await run(
-    ['-hide_banner', '-f', 'dshow', '-rtbufsize', '64M', '-i', `video=${chosen}`, '-frames:v', '1', '-q:v', '3', '-y', out],
+    ['-hide_banner', '-f', 'dshow', '-rtbufsize', '64M', '-i', `video=${chosen}`, '-frames:v', '8', '-update', '1', '-q:v', '3', '-y', out],
     20000,
   )
   try {
