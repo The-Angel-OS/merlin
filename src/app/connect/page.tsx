@@ -14,11 +14,12 @@
 import Link from 'next/link'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useConnection } from '@/hooks/useConnection'
+import { useNodeBinding } from '@/hooks/useNodeBinding'
 import { NodeLockOn } from '@/components/NodeLockOn'
 import type { EndeavorRef, EnterpriseRef } from '@/lib/federation'
 import {
   Search, Radio, CheckCircle2, AlertCircle, Globe,
-  ChevronRight, Wifi, WifiOff, RefreshCw, Building2, X,
+  ChevronRight, Wifi, WifiOff, RefreshCw, Building2, X, Zap, PlugZap, Loader2,
 } from 'lucide-react'
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -45,6 +46,7 @@ function categoryColor(cat?: string): string {
 
 export default function ConnectPage() {
   const { directory, directoryLoading, directoryError, sessions, active, refreshDirectory, search } = useConnection()
+  const { lockedSlug, busySlug, lockOn } = useNodeBinding()
   const [query, setQuery] = useState('')
   const [manualDomain, setManualDomain] = useState('')
   const [view, setView] = useState<'endeavors' | 'enterprises'>('endeavors')
@@ -225,7 +227,14 @@ export default function ConnectPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {results.map(e => (
-              <EndeavorCard key={e.slug} e={e} remembered={rememberedSlugs.has(e.slug)} />
+              <EndeavorCard
+                key={e.slug}
+                e={e}
+                remembered={rememberedSlugs.has(e.slug)}
+                locked={lockedSlug === e.slug}
+                locking={busySlug === e.slug}
+                onLock={() => lockOn(e.slug, e.domain)}
+              />
             ))}
           </div>
         )}
@@ -328,13 +337,23 @@ function EnterpriseCard({ ent, onPick }: { ent: EnterpriseRef; onPick: () => voi
   )
 }
 
-function EndeavorCard({ e, remembered }: { e: EndeavorRef; remembered: boolean }) {
+/**
+ * EndeavorCard — a live node-selector tile. Clicking it LOCKS this Merlin onto the
+ * endeavor (config-free, no sign-in) and shows the locked/beaming state. A small
+ * "Details" link still opens the [slug] page for the manifest + human sign-in.
+ */
+function EndeavorCard({
+  e, remembered, locked, locking, onLock,
+}: { e: EndeavorRef; remembered: boolean; locked: boolean; locking: boolean; onLock: () => void }) {
   const accent = categoryColor(e.publicProfile?.category)
   return (
-    <Link
-      href={`/connect/${e.slug}`}
-      className="group block rounded-lg border p-4 transition hover:border-white/30"
-      style={{ borderColor: '#ffffff15' }}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onLock}
+      onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onLock() } }}
+      className="group relative block cursor-pointer rounded-lg border p-4 text-left transition hover:border-white/30"
+      style={{ borderColor: locked ? '#22cc8855' : '#ffffff15', background: locked ? '#22cc8808' : undefined }}
     >
       <div className="mb-2 flex items-start justify-between">
         <div
@@ -343,14 +362,18 @@ function EndeavorCard({ e, remembered }: { e: EndeavorRef; remembered: boolean }
         >
           <Radio className="h-5 w-5" />
         </div>
-        {remembered ? (
-          <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-            style={{ background: '#22cc8822', color: '#22cc88' }}
-          >
-            Signed in
-          </span>
-        ) : null}
+        <div className="flex items-center gap-1.5">
+          {remembered ? (
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider" style={{ background: '#99ccff22', color: '#99ccff' }}>
+              Signed in
+            </span>
+          ) : null}
+          {locked ? (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider" style={{ background: '#22cc8822', color: '#22cc88' }}>
+              <Zap className="h-3 w-3" /> Locked
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="mb-1 font-medium" style={{ color: '#eef2ff' }}>
         {e.name}
@@ -367,6 +390,20 @@ function EndeavorCard({ e, remembered }: { e: EndeavorRef; remembered: boolean }
           Hosted on {e.hostedOn}
         </p>
       )}
-    </Link>
+      <div className="mt-3 flex items-center justify-between">
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: locked ? '#22cc88' : '#f5a623' }}>
+          {locking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : locked ? <Zap className="h-3.5 w-3.5" /> : <PlugZap className="h-3.5 w-3.5" />}
+          {locked ? 'This node is locked on' : locking ? 'Locking on…' : 'Lock this node on'}
+        </span>
+        <Link
+          href={`/connect/${e.slug}`}
+          onClick={(ev) => ev.stopPropagation()}
+          className="inline-flex items-center gap-0.5 text-xs hover:underline"
+          style={{ color: '#99ccff' }}
+        >
+          Details <ChevronRight className="h-3 w-3" />
+        </Link>
+      </div>
+    </div>
   )
 }
