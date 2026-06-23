@@ -299,16 +299,32 @@ declare global {
   var __merlinNodeBusLoop: { heartbeat?: NodeJS.Timeout; poll?: NodeJS.Timeout } | undefined
 }
 
+// Zero-click preconfig: a "dropped" Merlin auto-locks onto the endeavor named in env
+// and starts sharing its preset — no /connect click. MERLIN_ANGELS_URL falls back to
+// NEXT_PUBLIC_ANGELS_URL so an image only needs to set MERLIN_ENDEAVOR.
+const PRECONFIG_ENDEAVOR = (process.env.MERLIN_ENDEAVOR || '').trim()
+const PRECONFIG_ANGELS_URL = (process.env.MERLIN_ANGELS_URL || process.env.NEXT_PUBLIC_ANGELS_URL || '').trim()
+
 /** Start the heartbeat + poll loop once. No-op until the node is bound to an endeavor. */
 export function startNodeBusLoop(): void {
   if (globalThis.__merlinNodeBusLoop) return
   globalThis.__merlinNodeBusLoop = {}
 
   const heartbeat = async () => {
-    if (!getSettings().boundEndeavor) return
+    const bound = Boolean(getSettings().boundEndeavor)
+    // If not yet bound but env preconfigures an endeavor, auto-lock-on this tick.
+    const args =
+      !bound && PRECONFIG_ENDEAVOR
+        ? { endeavor: PRECONFIG_ENDEAVOR, angelsUrl: PRECONFIG_ANGELS_URL || undefined }
+        : {}
+    if (!bound && !PRECONFIG_ENDEAVOR) return // unbound + no preconfig → nothing to do
     try {
-      const r = await registerNode()
-      if (!r.ok) appendLog({ type: 'error', source: 'node-bus', message: `heartbeat register ${r.status}: ${r.core.error || ''}` })
+      const r = await registerNode(args)
+      if (r.ok && !bound) {
+        appendLog({ type: 'angels', source: 'node-bus', message: `auto-locked onto "${PRECONFIG_ENDEAVOR}" (env preconfig)` })
+      } else if (!r.ok) {
+        appendLog({ type: 'error', source: 'node-bus', message: `heartbeat register ${r.status}: ${r.core.error || ''}` })
+      }
     } catch (e) {
       appendLog({ type: 'error', source: 'node-bus', message: `heartbeat failed: ${e instanceof Error ? e.message : e}` })
     }

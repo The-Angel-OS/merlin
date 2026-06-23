@@ -127,8 +127,11 @@ export async function buildNodeCatalog() {
   })
 
   // Bulk/streaming reach (movies, cameras, big files) rides the tunnel; command/control
-  // rides the bus. Advertise the tunnel URL only when one is live AND tunnel sharing is on.
-  const tunnelUrl = shares.tunnel ? getSettings().tunnelUrl || undefined : undefined
+  // rides the bus. Advertise the tunnel URL only when tunnel sharing is on. The URL comes
+  // from settings (set at runtime) or MERLIN_TUNNEL_URL env (preconfig, e.g. a named tunnel).
+  const tunnelUrl = shares.tunnel
+    ? getSettings().tunnelUrl || process.env.MERLIN_TUNNEL_URL || undefined
+    : undefined
 
   const stats = await nodeStats()
 
