@@ -88,6 +88,8 @@ export interface Settings {
   busSpaceId: string
   /** Poll cursor — newest message createdAt already processed (ISO). */
   busCursor: string
+  /** Default local camera device for snap_camera (dshow name). Empty = first available. */
+  cameraDevice: string
 }
 
 const SETTINGS_DEFAULTS: Settings = {
@@ -118,6 +120,7 @@ const SETTINGS_DEFAULTS: Settings = {
   busChannel: '',
   busSpaceId: '',
   busCursor: '',
+  cameraDevice: '',
 }
 
 export function getSettings(): Settings {

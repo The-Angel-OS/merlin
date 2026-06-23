@@ -69,6 +69,38 @@ function coreFetch(base: string, path: string, token: string, init: RequestInit 
   })
 }
 
+/**
+ * File bridge — submit a file (e.g. a camera snapshot) UP into the bound endeavor's
+ * Media library via Core's /api/node-ops/media. Bytes ride base64 in JSON (fine for
+ * snapshots). Returns the Media URL Core created.
+ */
+export async function submitSnapshot(
+  buffer: Buffer,
+  filename: string,
+  mimetype: string,
+  alt?: string,
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const s = getSettings()
+  if (!s.boundEndeavor || !s.nodeToken) return { ok: false, error: 'node is not locked onto an endeavor' }
+  try {
+    const res = await coreFetch(s.boundAngelsUrl, '/api/node-ops/media', s.nodeToken, {
+      method: 'POST',
+      body: JSON.stringify({
+        endeavor: s.boundEndeavor,
+        filename,
+        mimetype,
+        alt: alt || filename,
+        dataBase64: buffer.toString('base64'),
+      }),
+    })
+    const d = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
+    if (!res.ok) return { ok: false, error: typeof d?.error === 'string' ? d.error : `media post ${res.status}` }
+    return { ok: true, url: typeof d?.url === 'string' ? d.url : undefined }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
 type BusMessage = {
   content?: unknown
   createdAt?: string
@@ -84,6 +116,16 @@ async function runCommand(tool: string, cmdArgs: Record<string, unknown>): Promi
     const lines = r.files.slice(0, 50).map((f) => `- ${f.path} — ${f.sizeMB} MB`)
     const more = r.count > lines.length ? `\n…and ${r.count - lines.length} more.` : ''
     return { text: `Found ${r.count} file(s) across ${r.roots.join(', ')}:\n${lines.join('\n')}${more}` }
+  }
+  if (tool === 'snap_camera') {
+    // Sentinel skill: grab a frame from a local camera + submit it to the endeavor.
+    const { snapCamera } = await import('./camera')
+    const device = typeof cmdArgs.device === 'string' ? cmdArgs.device : getSettings().cameraDevice || undefined
+    const snap = await snapCamera(device)
+    if (!snap.ok || !snap.buffer) return { text: `Could not snap camera: ${snap.error || 'unknown error'}.` }
+    const up = await submitSnapshot(snap.buffer, snap.filename!, snap.mimetype!, `Snapshot from ${snap.device}`)
+    if (!up.ok) return { text: `Snapped "${snap.device}" but submit failed: ${up.error}.` }
+    return { text: `📸 Snapshot from "${snap.device}" submitted to the endeavor: ${up.url}` }
   }
   if (tool === 'chat') {
     // The Merlin Console: run the message through this node's LOCAL brain + tool belt.
