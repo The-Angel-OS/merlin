@@ -28,7 +28,8 @@ export async function runAgent(conversationId: string, userText: string): Promis
     // Settings first, then env (.env.local) — the LocalSystem service doesn't inherit
     // the user's GEMINI_API_KEY, so the env fallback lets the local override power the brain.
     providerConfig: {
-      geminiApiKey: s.geminiApiKey || process.env.GEMINI_API_KEY || '',
+      // Accept Angel OS's GOOGLE_AI_API_KEY name as well as GEMINI_API_KEY.
+      geminiApiKey: s.geminiApiKey || process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '',
       anthropicApiKey: s.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '',
     },
     system: SYSTEM,
