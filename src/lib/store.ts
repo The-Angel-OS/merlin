@@ -57,6 +57,28 @@ export function getLog(limit = 100, type?: string): LogEntry[] {
   return filtered.slice(0, limit)
 }
 
+// ─── Submittals (camera/window snapshots pushed to the endeavor) ──────────────
+export interface Submittal {
+  at: string
+  filename: string
+  url: string // Core media URL (relative to the bound endeavor)
+  source: string // e.g. "OBS Virtual Camera" or "window:Phone Link"
+  endeavor: string
+}
+const MAX_SUBMITTALS = 500
+
+/** Record a successful submittal locally so Merlin's Screenshots tab can list it. */
+export function addSubmittal(entry: Submittal): void {
+  const list = readStore<Submittal[]>('submittals.json', [])
+  list.unshift(entry)
+  if (list.length > MAX_SUBMITTALS) list.splice(MAX_SUBMITTALS)
+  writeStore('submittals.json', list)
+}
+
+export function getSubmittals(limit = 200): Submittal[] {
+  return readStore<Submittal[]>('submittals.json', []).slice(0, limit)
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 export interface Settings {
   youtubeChannelId: string

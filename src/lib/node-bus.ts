@@ -7,7 +7,7 @@
  * post results back as messages. Outbound-only — NAT needs no inbound reach.
  */
 import { buildNodeCatalog } from '@/lib/node-catalog'
-import { getSettings, updateSettings, appendLog } from '@/lib/store'
+import { getSettings, updateSettings, appendLog, addSubmittal } from '@/lib/store'
 import { listSharedMedia } from '@/lib/nodeSkills'
 
 const HEARTBEAT_MS = 120_000 // re-register every 2 min (Core's online window is 5 min)
@@ -95,6 +95,9 @@ export async function submitSnapshot(
     })
     const d = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
     if (!res.ok) return { ok: false, error: typeof d?.error === 'string' ? d.error : `media post ${res.status}` }
+    if (typeof d?.url === 'string') {
+      addSubmittal({ at: new Date().toISOString(), filename, url: d.url, source: alt || filename, endeavor: s.boundEndeavor })
+    }
     return { ok: true, url: typeof d?.url === 'string' ? d.url : undefined }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
