@@ -15,6 +15,9 @@ const POLL_MS = 8_000 // poll the command channel every 8s
 
 /** requestIds already handled this process — belt-and-braces over the cursor. */
 const processed = new Set<string>()
+/** Per-requestId failed-post attempts, for bounded retry before dead-lettering. */
+const attempts = new Map<string, number>()
+const MAX_POST_ATTEMPTS = 3
 
 type RegisterArgs = { endeavor?: string; angelsUrl?: string; key?: string }
 type CoreRegister = {
@@ -174,18 +177,32 @@ export async function pollOnce(): Promise<{ handled: number }> {
     return { handled: 0 }
   }
 
+  // Delivery guarantee: only advance the cursor past a command once its result is
+  // ACKED (posted ok) — or dead-lettered after MAX_POST_ATTEMPTS. A failed post HALTS
+  // cursor advance so the command is re-polled + retried next tick (no silent drop),
+  // and the attempt cap keeps a poison message from wedging the queue forever.
   let newest = s.busCursor
   let handled = 0
+  let halt = false
   for (const m of messages) {
-    if (m.createdAt && m.createdAt > newest) newest = m.createdAt
+    if (halt) break
     const meta = m.metadata
-    if (!meta || meta.kind !== 'node-command' || !meta.tool) continue
+    const isCmd = Boolean(meta && meta.kind === 'node-command' && meta.tool)
+    // Non-command messages (results, others) never block the cursor.
+    if (!meta || !isCmd) {
+      if (m.createdAt && m.createdAt > newest) newest = m.createdAt
+      continue
+    }
+    const tool = meta.tool as string
     const requestId = meta.requestId || ''
-    if (requestId && processed.has(requestId)) continue
-    if (requestId) processed.add(requestId)
+    if (requestId && processed.has(requestId)) {
+      if (m.createdAt && m.createdAt > newest) newest = m.createdAt
+      continue
+    }
 
-    const { text } = await runCommand(meta.tool, meta.args || {})
+    const { text } = await runCommand(tool, meta.args || {})
     const reply = `${text}${requestId ? `\n\n_(request ${requestId})_` : ''}`
+    let posted = false
     try {
       const post = await coreFetch(s.boundAngelsUrl, '/api/chat/send', s.nodeToken, {
         // content MUST be the {text} shape — Core's Messages.content is a required
@@ -193,14 +210,30 @@ export async function pollOnce(): Promise<{ handled: number }> {
         method: 'POST',
         body: JSON.stringify({ space: s.busSpaceId, channel: s.busChannel, content: { text: reply }, messageType: 'system' }),
       })
-      if (post.ok) {
-        handled++
-        appendLog({ type: 'angels', source: 'node-bus', message: `answered ${meta.tool} on #${s.busChannel}` })
-      } else {
-        appendLog({ type: 'error', source: 'node-bus', message: `result post ${post.status} for ${meta.tool}` })
-      }
+      posted = post.ok
+      if (!post.ok) appendLog({ type: 'error', source: 'node-bus', message: `result post ${post.status} for ${tool}` })
     } catch (e) {
       appendLog({ type: 'error', source: 'node-bus', message: `result post failed: ${e instanceof Error ? e.message : e}` })
+    }
+
+    if (posted) {
+      if (requestId) { processed.add(requestId); attempts.delete(requestId) }
+      if (m.createdAt && m.createdAt > newest) newest = m.createdAt
+      handled++
+      appendLog({ type: 'angels', source: 'node-bus', message: `answered ${tool} on #${s.busChannel}` })
+    } else {
+      const n = (requestId ? attempts.get(requestId) || 0 : 0) + 1
+      if (requestId) attempts.set(requestId, n)
+      if (n >= MAX_POST_ATTEMPTS) {
+        // Dead-letter: stop retrying so it can't wedge the queue.
+        if (requestId) { processed.add(requestId); attempts.delete(requestId) }
+        if (m.createdAt && m.createdAt > newest) newest = m.createdAt
+        appendLog({ type: 'error', source: 'node-bus', message: `dead-letter ${tool} after ${n} attempts (req ${requestId || 'n/a'})` })
+      } else {
+        // Hold the cursor here → re-poll + retry from this command next tick.
+        appendLog({ type: 'system', source: 'node-bus', message: `holding for retry ${n}/${MAX_POST_ATTEMPTS}: ${tool} (req ${requestId || 'n/a'})` })
+        halt = true
+      }
     }
   }
 
