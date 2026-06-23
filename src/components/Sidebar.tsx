@@ -13,7 +13,7 @@ import { appStorage } from '@/lib/storage'
 import {
   LayoutDashboard, Radio, Image, Sparkles, Youtube, Key, Activity,
   Camera, Film, ChevronDown, ChevronRight, Wifi, WifiOff,
-  PanelLeftClose, PanelLeft, Upload, ExternalLink, Home, Eye, Cpu, X,
+  PanelLeftClose, PanelLeft, Upload, ExternalLink, Home, Eye, Cpu, X, Share2,
 } from 'lucide-react'
 
 interface Tenant { id: string; name: string; slug: string; domain?: string }
@@ -72,6 +72,7 @@ const NAV: NavSection[] = [
   {
     title: 'System', accent: '#7788aa',
     items: [
+      { href: '/shares',    label: 'Sharing',      icon: Share2 },
       { href: '/resources', label: 'Resources',    icon: Cpu },
       { href: '/youtube', label: 'YouTube',       icon: Youtube },
       { href: '/keys',    label: 'Keys & Config', icon: Key },

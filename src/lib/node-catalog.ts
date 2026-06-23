@@ -1,6 +1,7 @@
 import os from 'node:os'
 import { loadRoots } from '@/lib/media-roots'
 import { getSettings } from '@/lib/store'
+import { loadShares, deriveCapabilities } from '@/lib/shares'
 
 /**
  * buildNodeCatalog — what this Merlin node offers the federation: opt-in shared
@@ -116,18 +117,18 @@ export async function buildNodeCatalog() {
     .map((r) => ({ path: r.path, label: r.label, icon: r.icon }))
 
   const ollama = await probeOllama()
-  // Bulk/streaming reach (movies, cameras, big files) rides the tunnel; command/control
-  // rides the bus. Advertise the tunnel URL when one is live so Core knows the bulk path.
-  const tunnelUrl = getSettings().tunnelUrl || undefined
 
-  const capabilities = [
-    ...(shared.length ? ['media'] : []),
-    'stats', // live telemetry — always on (the DataDog-replacement panel)
-    'leo', // Merlin Console — talk to this node's local brain over the bus
-    'ingest',
-    'cameras',
-    ...(ollama.available ? ['compute'] : []),
-  ]
+  // What this owner OPTED to share (tiered toggles / named preset / env preconfig).
+  // Intent is ANDed with availability: a flag says "willing", these checks say "able".
+  const { shares } = loadShares()
+  const capabilities = deriveCapabilities(shares, {
+    hasSharedRoots: shared.length > 0,
+    ollamaAvailable: ollama.available,
+  })
+
+  // Bulk/streaming reach (movies, cameras, big files) rides the tunnel; command/control
+  // rides the bus. Advertise the tunnel URL only when one is live AND tunnel sharing is on.
+  const tunnelUrl = shares.tunnel ? getSettings().tunnelUrl || undefined : undefined
 
   const stats = await nodeStats()
 
