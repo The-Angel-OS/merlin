@@ -76,7 +76,7 @@ type BusMessage = {
 }
 
 /** Run the matching skill for a node-command and return human-readable result text. */
-function runCommand(tool: string, cmdArgs: Record<string, unknown>): { text: string } {
+async function runCommand(tool: string, cmdArgs: Record<string, unknown>): Promise<{ text: string }> {
   if (tool === 'list_media') {
     const r = listSharedMedia({ query: typeof cmdArgs.query === 'string' ? cmdArgs.query : undefined })
     if (!r.ok) return { text: `Could not list files: ${r.error}.` }
@@ -84,6 +84,20 @@ function runCommand(tool: string, cmdArgs: Record<string, unknown>): { text: str
     const lines = r.files.slice(0, 50).map((f) => `- ${f.path} — ${f.sizeMB} MB`)
     const more = r.count > lines.length ? `\n…and ${r.count - lines.length} more.` : ''
     return { text: `Found ${r.count} file(s) across ${r.roots.join(', ')}:\n${lines.join('\n')}${more}` }
+  }
+  if (tool === 'chat') {
+    // The Merlin Console: run the message through this node's LOCAL brain + tool belt.
+    const message = typeof cmdArgs.message === 'string' ? cmdArgs.message : ''
+    if (!message.trim()) return { text: '(empty message)' }
+    try {
+      const { runAgent } = await import('./leoAgent')
+      const convoId = typeof cmdArgs.conversationId === 'string' ? cmdArgs.conversationId : 'node-console'
+      const r = await runAgent(convoId, message)
+      const used = r.toolsUsed.length ? `\n\n_(${r.provider} · tools: ${r.toolsUsed.join(', ')})_` : `\n\n_(${r.provider})_`
+      return { text: `${r.response}${used}` }
+    } catch (e) {
+      return { text: `Local brain error: ${e instanceof Error ? e.message : String(e)}` }
+    }
   }
   return { text: `Unknown skill "${tool}".` }
 }
@@ -123,7 +137,7 @@ export async function pollOnce(): Promise<{ handled: number }> {
     if (requestId && processed.has(requestId)) continue
     if (requestId) processed.add(requestId)
 
-    const { text } = runCommand(meta.tool, meta.args || {})
+    const { text } = await runCommand(meta.tool, meta.args || {})
     const reply = `${text}${requestId ? `\n\n_(request ${requestId})_` : ''}`
     try {
       const post = await coreFetch(s.boundAngelsUrl, '/api/chat/send', s.nodeToken, {

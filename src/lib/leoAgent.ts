@@ -25,7 +25,12 @@ export async function runAgent(conversationId: string, userText: string): Promis
     messages: prior,
     userText,
     tools: TOOLS,
-    providerConfig: { geminiApiKey: s.geminiApiKey, anthropicApiKey: s.anthropicApiKey },
+    // Settings first, then env (.env.local) — the LocalSystem service doesn't inherit
+    // the user's GEMINI_API_KEY, so the env fallback lets the local override power the brain.
+    providerConfig: {
+      geminiApiKey: s.geminiApiKey || process.env.GEMINI_API_KEY || '',
+      anthropicApiKey: s.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '',
+    },
     system: SYSTEM,
   })
 

@@ -96,6 +96,7 @@ export async function buildNodeCatalog() {
   const capabilities = [
     ...(shared.length ? ['media'] : []),
     'stats', // live telemetry — always on (the DataDog-replacement panel)
+    'leo', // Merlin Console — talk to this node's local brain over the bus
     'ingest',
     'cameras',
     ...(ollama.available ? ['compute'] : []),
