@@ -13,7 +13,7 @@ import { appStorage } from '@/lib/storage'
 import {
   LayoutDashboard, Radio, Image, Sparkles, Youtube, Key, Activity,
   Camera, Film, ChevronDown, ChevronRight, Wifi, WifiOff,
-  PanelLeftClose, PanelLeft, Upload, ExternalLink, Home,
+  PanelLeftClose, PanelLeft, Upload, ExternalLink, Home, Eye,
 } from 'lucide-react'
 
 interface Tenant { id: string; name: string; slug: string; domain?: string }
@@ -65,6 +65,7 @@ const NAV: NavSection[] = [
     title: 'Surveillance', accent: '#cc4444',
     items: [
       { href: '/cameras',   label: 'Cameras',   icon: Camera, badgeKey: 'cameras' },
+      { href: '/sentinel',  label: 'Sentinel',  icon: Eye },
       { href: '/recording', label: 'Recording', icon: Film },
     ],
   },
@@ -159,7 +160,7 @@ function Section({
       <div className="space-y-0.5 pt-1 border-t border-border/30 first:border-0 first:pt-0">
         {section.items.map(item => (
           <NavLink
-            key={item.href}
+            key={item.label}
             item={item}
             accent={section.accent}
             collapsed
@@ -187,7 +188,7 @@ function Section({
         <div className="space-y-0.5">
           {section.items.map(item => (
             <NavLink
-              key={item.href}
+              key={item.label}
               item={item}
               accent={section.accent}
               collapsed={false}
