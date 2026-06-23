@@ -6,7 +6,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
-import { Search, Bell, Sparkles, Wifi, WifiOff, ChevronRight } from 'lucide-react'
+import { Search, Bell, Sparkles, Wifi, WifiOff, ChevronRight, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ConnectionPill from '@/components/ConnectionPill'
 import ConnectionStatus from '@/components/ConnectionStatus'
@@ -39,11 +39,13 @@ export default function AppHeader({
   responseMs,
   notifications,
   onPaletteOpen,
+  onMenuOpen,
 }: {
   isOnline: boolean | null
   responseMs: number | null
   notifications: number
   onPaletteOpen: () => void
+  onMenuOpen?: () => void
 }) {
   const pathname = usePathname()
   const crumb = resolveCrumb(pathname)
@@ -69,6 +71,17 @@ export default function AppHeader({
       />
 
       <div className="flex items-center gap-3 px-4 w-full">
+        {/* Hamburger — opens the off-canvas sidebar drawer on mobile */}
+        {onMenuOpen && (
+          <button
+            onClick={onMenuOpen}
+            className="md:hidden p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
+            title="Menu"
+            aria-label="Open menu"
+          >
+            <Menu className="size-5" />
+          </button>
+        )}
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 flex-1 min-w-0 select-none">
           {crumb?.parent && (

@@ -13,7 +13,7 @@ import { appStorage } from '@/lib/storage'
 import {
   LayoutDashboard, Radio, Image, Sparkles, Youtube, Key, Activity,
   Camera, Film, ChevronDown, ChevronRight, Wifi, WifiOff,
-  PanelLeftClose, PanelLeft, Upload, ExternalLink, Home, Eye, Cpu,
+  PanelLeftClose, PanelLeft, Upload, ExternalLink, Home, Eye, Cpu, X,
 } from 'lucide-react'
 
 interface Tenant { id: string; name: string; slug: string; domain?: string }
@@ -204,12 +204,21 @@ function Section({
 
 // ─── Sidebar ────────────────────────────────────────────────────────────────
 export default function Sidebar({
-  collapsed,
+  collapsed: collapsedProp,
   onToggle,
+  mobile = false,
+  mobileOpen = false,
+  onMobileClose,
 }: {
   collapsed: boolean
   onToggle: () => void
+  mobile?: boolean
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }) {
+  // On mobile the sidebar is an off-canvas drawer: always full-width (never the
+  // icon-only collapsed rail) and slid in/out via transform.
+  const collapsed = mobile ? false : collapsedProp
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [showPicker, setShowPicker] = useState(false)
@@ -291,8 +300,14 @@ export default function Sidebar({
 
   return (
     <aside
-      className="fixed left-0 top-0 bottom-0 flex flex-col border-r border-border/60 bg-background/97 backdrop-blur-xl z-30 overflow-hidden transition-[width] duration-200"
-      style={{ width: collapsed ? '3.5rem' : '14rem' }}
+      className={cn(
+        'fixed left-0 top-0 bottom-0 flex flex-col border-r border-border/60 bg-background/97 backdrop-blur-xl overflow-hidden transition-[width,transform] duration-200',
+        mobile ? 'z-50' : 'z-30',
+      )}
+      style={{
+        width: collapsed ? '3.5rem' : '14rem',
+        transform: mobile && !mobileOpen ? 'translateX(-100%)' : 'translateX(0)',
+      }}
     >
       {/* Top LCARS stripe */}
       <div className="h-0.5 bg-gradient-to-r from-lcars-amber via-lcars-blue to-lcars-purple opacity-60 shrink-0" />
@@ -327,6 +342,16 @@ export default function Sidebar({
               animation: online ? 'liveness-dot-pulse 1.2s ease-in-out infinite' : 'none',
             }}
           />
+        )}
+        {mobile && (
+          <button
+            onClick={onMobileClose}
+            className="p-1.5 -mr-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+            title="Close menu"
+            aria-label="Close menu"
+          >
+            <X className="size-4" />
+          </button>
         )}
       </div>
 
@@ -405,20 +430,22 @@ export default function Sidebar({
             )}
           </div>
         )}
-        {/* Collapse / expand toggle */}
-        <button
-          onClick={onToggle}
-          className={cn(
-            'w-full flex items-center text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors',
-            collapsed ? 'justify-center py-2.5' : 'gap-2 px-3 py-2 text-[10px] font-mono uppercase tracking-wider border-t border-border/60',
-          )}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed
-            ? <PanelLeft className="size-4" />
-            : <><PanelLeftClose className="size-3.5" /><span>Collapse</span></>
-          }
-        </button>
+        {/* Collapse / expand toggle — desktop only (mobile uses the drawer close) */}
+        {!mobile && (
+          <button
+            onClick={onToggle}
+            className={cn(
+              'w-full flex items-center text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors',
+              collapsed ? 'justify-center py-2.5' : 'gap-2 px-3 py-2 text-[10px] font-mono uppercase tracking-wider border-t border-border/60',
+            )}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed
+              ? <PanelLeft className="size-4" />
+              : <><PanelLeftClose className="size-3.5" /><span>Collapse</span></>
+            }
+          </button>
+        )}
       </div>
 
       {/* Bottom LCARS stripe */}
