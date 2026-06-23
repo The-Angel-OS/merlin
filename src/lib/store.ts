@@ -90,6 +90,15 @@ export interface Settings {
   busCursor: string
   /** Default local camera device for snap_camera (dshow name). Empty = first available. */
   cameraDevice: string
+  // ─── Camera sentinel (change-detection) ──────────────────────────────────────
+  /** When true, the sentinel loop polls the camera + submits frames on change. */
+  sentinelEnabled: boolean
+  /** Camera for the sentinel (falls back to cameraDevice, then first available). */
+  sentinelDevice: string
+  /** Poll cadence in ms (min 1000). */
+  sentinelIntervalMs: number
+  /** Change threshold 0..1 (mean abs grayscale diff). ~0.04 = 4% of pixels moved. */
+  sentinelThreshold: number
 }
 
 const SETTINGS_DEFAULTS: Settings = {
@@ -121,6 +130,10 @@ const SETTINGS_DEFAULTS: Settings = {
   busSpaceId: '',
   busCursor: '',
   cameraDevice: '',
+  sentinelEnabled: false,
+  sentinelDevice: '',
+  sentinelIntervalMs: 5000,
+  sentinelThreshold: 0.04,
 }
 
 export function getSettings(): Settings {
