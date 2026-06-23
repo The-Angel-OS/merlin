@@ -8,7 +8,7 @@
  * Submissions ride the file bridge (submitSnapshot → endeavor Media).
  */
 import sharp from 'sharp'
-import { snapCamera } from './camera'
+import { captureFrame } from './camera'
 import { submitSnapshot } from './node-bus'
 import { getSettings, updateSettings, appendLog } from './store'
 
@@ -41,7 +41,10 @@ async function tick(): Promise<void> {
   try {
     const s = getSettings()
     if (!s.sentinelEnabled) return
-    const snap = await snapCamera(s.sentinelDevice || s.cameraDevice || undefined)
+    const snap = await captureFrame({
+      device: s.sentinelDevice || s.cameraDevice || undefined,
+      window: s.sentinelWindow || undefined,
+    })
     if (!snap.ok || !snap.buffer) {
       appendLog({ type: 'error', source: 'sentinel', message: `snap failed: ${snap.error}` })
       return
@@ -111,7 +114,9 @@ export function sentinelStatus() {
   return {
     running: Boolean(g?.running),
     enabled: s.sentinelEnabled,
+    source: s.sentinelWindow ? `window:${s.sentinelWindow}` : `camera:${s.sentinelDevice || s.cameraDevice || '(first)'}`,
     device: s.sentinelDevice || s.cameraDevice || '',
+    window: s.sentinelWindow || '',
     intervalMs: s.sentinelIntervalMs || 5000,
     threshold: s.sentinelThreshold || 0.04,
     last: g?.last || null,

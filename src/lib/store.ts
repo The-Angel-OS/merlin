@@ -95,6 +95,8 @@ export interface Settings {
   sentinelEnabled: boolean
   /** Camera for the sentinel (falls back to cameraDevice, then first available). */
   sentinelDevice: string
+  /** Window TITLE to monitor instead of a camera (gdigrab, e.g. a Bluestacks viewer). Wins over device. */
+  sentinelWindow: string
   /** Poll cadence in ms (min 1000). */
   sentinelIntervalMs: number
   /** Change threshold 0..1 (mean abs grayscale diff). ~0.04 = 4% of pixels moved. */
@@ -132,6 +134,7 @@ const SETTINGS_DEFAULTS: Settings = {
   cameraDevice: '',
   sentinelEnabled: false,
   sentinelDevice: '',
+  sentinelWindow: '',
   sentinelIntervalMs: 5000,
   sentinelThreshold: 0.04,
 }

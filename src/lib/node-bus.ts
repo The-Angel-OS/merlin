@@ -118,11 +118,13 @@ async function runCommand(tool: string, cmdArgs: Record<string, unknown>): Promi
     return { text: `Found ${r.count} file(s) across ${r.roots.join(', ')}:\n${lines.join('\n')}${more}` }
   }
   if (tool === 'snap_camera') {
-    // Sentinel skill: grab a frame from a local camera + submit it to the endeavor.
-    const { snapCamera } = await import('./camera')
+    // Sentinel skill: grab a frame from a local camera OR an on-screen window
+    // (e.g. a Bluestacks/IP-cam viewer) + submit it to the endeavor.
+    const { captureFrame } = await import('./camera')
     const device = typeof cmdArgs.device === 'string' ? cmdArgs.device : getSettings().cameraDevice || undefined
-    const snap = await snapCamera(device)
-    if (!snap.ok || !snap.buffer) return { text: `Could not snap camera: ${snap.error || 'unknown error'}.` }
+    const window = typeof cmdArgs.window === 'string' ? cmdArgs.window : undefined
+    const snap = await captureFrame({ device, window })
+    if (!snap.ok || !snap.buffer) return { text: `Could not snap: ${snap.error || 'unknown error'}.` }
     const up = await submitSnapshot(snap.buffer, snap.filename!, snap.mimetype!, `Snapshot from ${snap.device}`)
     if (!up.ok) return { text: `Snapped "${snap.device}" but submit failed: ${up.error}.` }
     return { text: `📸 Snapshot from "${snap.device}" submitted to the endeavor: ${up.url}` }

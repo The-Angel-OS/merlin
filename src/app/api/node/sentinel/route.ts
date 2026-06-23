@@ -16,7 +16,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  let body: { action?: string; device?: string; intervalMs?: number; threshold?: number; key?: string } = {}
+  let body: { action?: string; device?: string; window?: string; intervalMs?: number; threshold?: number; key?: string } = {}
   try { body = await req.json() } catch { /* defaults */ }
 
   const configured = process.env.NODE_SKILL_KEY || process.env.NODE_REGISTER_KEY || ''
@@ -31,6 +31,7 @@ export async function POST(req: Request) {
   // Apply any provided config before (re)starting.
   const patch: Record<string, unknown> = {}
   if (typeof body.device === 'string') patch.sentinelDevice = body.device.trim()
+  if (typeof body.window === 'string') patch.sentinelWindow = body.window.trim()
   if (typeof body.intervalMs === 'number' && body.intervalMs >= 1000) patch.sentinelIntervalMs = body.intervalMs
   if (typeof body.threshold === 'number' && body.threshold > 0 && body.threshold <= 1) patch.sentinelThreshold = body.threshold
   if (Object.keys(patch).length) updateSettings(patch)

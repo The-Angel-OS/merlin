@@ -31,6 +31,55 @@ function run(args: string[], timeoutMs: number): Promise<{ code: number; stderr:
   })
 }
 
+/** List open windows by title (for window-monitoring sources, e.g. Bluestacks). */
+export async function listWindows(): Promise<{ ok: boolean; windows: string[]; error?: string }> {
+  return new Promise((resolve) => {
+    execFile(
+      'powershell',
+      ['-NoProfile', '-Command', "Get-Process | Where-Object { $_.MainWindowTitle } | Select-Object -ExpandProperty MainWindowTitle"],
+      { timeout: 8000, windowsHide: true, maxBuffer: 2 * 1024 * 1024 },
+      (err, stdout) => {
+        if (err && !stdout) return resolve({ ok: false, windows: [], error: err.message })
+        const windows = Array.from(
+          new Set(
+            String(stdout || '')
+              .split(/\r?\n/)
+              .map((s) => s.trim())
+              .filter(Boolean),
+          ),
+        )
+        resolve({ ok: true, windows })
+      },
+    )
+  })
+}
+
+/** Snap a single frame of a specific on-screen WINDOW via gdigrab (by title). */
+export async function snapWindow(title: string): Promise<SnapResult> {
+  const chosen = (title || '').trim()
+  if (!chosen) return { ok: false, error: 'no window title given' }
+  const out = join(tmpdir(), `merlin-win-${Date.now()}.jpg`)
+  const { code, stderr } = await run(
+    ['-hide_banner', '-f', 'gdigrab', '-framerate', '1', '-i', `title=${chosen}`, '-frames:v', '1', '-update', '1', '-q:v', '3', '-y', out],
+    15000,
+  )
+  try {
+    const buffer = await readFile(out)
+    await unlink(out).catch(() => {})
+    if (!buffer.length) return { ok: false, device: `window:${chosen}`, error: `capture produced no data (ffmpeg exit ${code})` }
+    return { ok: true, buffer, device: `window:${chosen}`, mimetype: 'image/jpeg', filename: `window-${Date.now()}.jpg` }
+  } catch {
+    const tail = stderr.split('\n').filter(Boolean).slice(-3).join(' ').slice(0, 300)
+    return { ok: false, device: `window:${chosen}`, error: `window capture failed (exit ${code}) — is the window open + not minimized? ${tail}` }
+  }
+}
+
+/** Unified capture: a window (gdigrab) if `window` is given, else a camera (dshow). */
+export async function captureFrame(opts: { device?: string; window?: string } = {}): Promise<SnapResult> {
+  if (opts.window && opts.window.trim()) return snapWindow(opts.window.trim())
+  return snapCamera(opts.device)
+}
+
 /** List local video capture devices (Windows DirectShow). */
 export async function listCameras(): Promise<{ ok: boolean; cameras: string[]; error?: string }> {
   try {
