@@ -9,6 +9,7 @@ import {
 } from '@/lib/shares'
 import { loadRoots } from '@/lib/media-roots'
 import { getSettings, appendLog } from '@/lib/store'
+import { reconcileTunnel, tunnelStatus } from '@/lib/tunnel'
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434'
 
@@ -37,7 +38,7 @@ export async function GET() {
     ollamaAvailable: await ollamaAvailable(),
   }
   const presets = Object.keys(SHARE_PRESETS).map((name) => ({ name, blurb: PRESET_BLURBS[name] || '' }))
-  return NextResponse.json({ config, availability, presets, envLocked: isEnvLocked() })
+  return NextResponse.json({ config, availability, presets, envLocked: isEnvLocked(), tunnel: tunnelStatus() })
 }
 
 export async function POST(req: NextRequest) {
@@ -53,8 +54,10 @@ export async function POST(req: NextRequest) {
   if (body.profile && SHARE_PRESETS[body.profile]) {
     const next = { profile: body.profile, shares: { ...SHARE_PRESETS[body.profile] } }
     saveShares(next)
+    // The tunnel share owns the cloudflared process — start/stop it to match.
+    reconcileTunnel(next.shares.tunnel)
     appendLog({ type: 'system', source: 'shares', message: `Applied sharing preset: ${body.profile}` })
-    return NextResponse.json({ success: true, config: next })
+    return NextResponse.json({ success: true, config: next, tunnel: tunnelStatus() })
   }
 
   // …or merge individual flag edits (→ profile becomes 'custom').
@@ -66,12 +69,14 @@ export async function POST(req: NextRequest) {
     }
     const next = { profile: 'custom', shares: merged }
     saveShares(next)
+    // If the tunnel flag was touched, start/stop cloudflared to match.
+    if (typeof body.shares.tunnel === 'boolean') reconcileTunnel(merged.tunnel)
     appendLog({
       type: 'system',
       source: 'shares',
       message: `Sharing updated: ${FLAG_KEYS.filter((k) => merged[k]).join(', ') || 'presence only'}`,
     })
-    return NextResponse.json({ success: true, config: next })
+    return NextResponse.json({ success: true, config: next, tunnel: tunnelStatus() })
   }
 
   return NextResponse.json({ error: 'Provide { profile } or { shares }.' }, { status: 400 })

@@ -46,6 +46,7 @@ export default function SharesPage() {
   const [config, setConfig] = useState<SharesConfig | null>(null)
   const [avail, setAvail] = useState<Availability | null>(null)
   const [presets, setPresets] = useState<Array<{ name: string; blurb: string }>>([])
+  const [tunnel, setTunnel] = useState<{ url?: string; mode?: string } | null>(null)
   const [envLocked, setEnvLocked] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
@@ -57,6 +58,7 @@ export default function SharesPage() {
         setConfig(d.config)
         setAvail(d.availability)
         setPresets(d.presets || [])
+        setTunnel(d.tunnel || null)
         setEnvLocked(!!d.envLocked)
       })
       .catch(() => {})
@@ -76,6 +78,7 @@ export default function SharesPage() {
       }).then((r) => r.json())
       if (res.config) {
         setConfig(res.config)
+        if (res.tunnel) setTunnel(res.tunnel)
         setMsg(`✓ ${note}`)
       } else {
         setMsg(`✗ ${res.error || 'failed'}`)
@@ -168,6 +171,14 @@ export default function SharesPage() {
                     {warn && (
                       <div className="mt-0.5 flex items-center gap-1 text-[11px] text-lcars-amber">
                         <AlertTriangle className="size-3 shrink-0" /> {warn}
+                      </div>
+                    )}
+                    {key === 'tunnel' && on && tunnel?.url && (
+                      <div className="mt-0.5 truncate text-[11px] text-lcars-green">
+                        Live ({tunnel.mode}):{' '}
+                        <a href={tunnel.url} target="_blank" rel="noreferrer" className="underline">
+                          {tunnel.url}
+                        </a>
                       </div>
                     )}
                   </div>
