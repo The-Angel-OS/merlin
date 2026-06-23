@@ -39,6 +39,28 @@ async function cpuUsagePercent(sampleMs = 150): Promise<number> {
   return total > 0 ? Math.round((1 - idle / total) * 100) : 0
 }
 
+// ── High-res CPU sampler ─────────────────────────────────────────────────────
+// A low-overhead ring buffer sampled every 2s so telemetry carries a *time series*
+// (sparkline), not just a 2-min snapshot. Started on first catalog build; idempotent.
+const CPU_RING: number[] = []
+const CPU_RING_MAX = 60 // ~2 min at 2s
+let cpuSamplerStarted = false
+function startCpuSampler() {
+  if (cpuSamplerStarted) return
+  cpuSamplerStarted = true
+  const tick = async () => {
+    try {
+      const pct = await cpuUsagePercent(120)
+      CPU_RING.push(pct)
+      while (CPU_RING.length > CPU_RING_MAX) CPU_RING.shift()
+    } catch {
+      /* sampler is best-effort */
+    }
+  }
+  void tick()
+  setInterval(() => void tick(), 2000)
+}
+
 function humanUptime(sec: number): string {
   const d = Math.floor(sec / 86400)
   const h = Math.floor((sec % 86400) / 3600)
@@ -50,12 +72,17 @@ function humanUptime(sec: number): string {
  * nodeStats — live machine telemetry, beamed UP every heartbeat (the DataDog-replacement
  * payload). Read-only; rendered by MerlinControl's Stats tab + the get_node_stats LEO tool.
  */
-async function nodeStats(): Promise<Record<string, string | number>> {
+async function nodeStats(): Promise<Record<string, unknown>> {
+  startCpuSampler()
   const cpus = os.cpus()
   const total = os.totalmem()
   const free = os.freemem()
+  const current = await cpuUsagePercent()
+  // Snapshot the ring (newest first sample lives at the end); fall back to the spot read.
+  const cpu_series = CPU_RING.length ? [...CPU_RING] : [current]
   return {
-    cpu_pct: await cpuUsagePercent(),
+    cpu_pct: current,
+    cpu_series,
     cpu_cores: cpus.length,
     cpu_model: (cpus[0]?.model || 'unknown').trim(),
     mem_used_pct: Math.round((1 - free / total) * 100),
