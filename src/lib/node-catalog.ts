@@ -20,6 +20,52 @@ function localIPv4(): string | null {
   return null
 }
 
+/** Live CPU utilization %, sampled over a short window (os.loadavg is 0 on Windows). */
+async function cpuUsagePercent(sampleMs = 150): Promise<number> {
+  const snap = () => {
+    let idle = 0
+    let total = 0
+    for (const c of os.cpus()) {
+      for (const t of Object.values(c.times)) total += t
+      idle += c.times.idle
+    }
+    return { idle, total }
+  }
+  const a = snap()
+  await new Promise((r) => setTimeout(r, sampleMs))
+  const b = snap()
+  const idle = b.idle - a.idle
+  const total = b.total - a.total
+  return total > 0 ? Math.round((1 - idle / total) * 100) : 0
+}
+
+function humanUptime(sec: number): string {
+  const d = Math.floor(sec / 86400)
+  const h = Math.floor((sec % 86400) / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  return [d ? `${d}d` : '', h ? `${h}h` : '', `${m}m`].filter(Boolean).join(' ')
+}
+
+/**
+ * nodeStats — live machine telemetry, beamed UP every heartbeat (the DataDog-replacement
+ * payload). Read-only; rendered by MerlinControl's Stats tab + the get_node_stats LEO tool.
+ */
+async function nodeStats(): Promise<Record<string, string | number>> {
+  const cpus = os.cpus()
+  const total = os.totalmem()
+  const free = os.freemem()
+  return {
+    cpu_pct: await cpuUsagePercent(),
+    cpu_cores: cpus.length,
+    cpu_model: (cpus[0]?.model || 'unknown').trim(),
+    mem_used_pct: Math.round((1 - free / total) * 100),
+    mem_total_gb: +(total / 1e9).toFixed(1),
+    mem_free_gb: +(free / 1e9).toFixed(1),
+    uptime: humanUptime(os.uptime()),
+    platform: `${os.platform()} ${os.arch()}`,
+  }
+}
+
 async function probeOllama(): Promise<{ available: boolean; models: string[] }> {
   try {
     const ctrl = new AbortController()
@@ -49,10 +95,13 @@ export async function buildNodeCatalog() {
 
   const capabilities = [
     ...(shared.length ? ['media'] : []),
+    'stats', // live telemetry — always on (the DataDog-replacement panel)
     'ingest',
     'cameras',
     ...(ollama.available ? ['compute'] : []),
   ]
+
+  const stats = await nodeStats()
 
   return {
     hostname: os.hostname(),
@@ -62,6 +111,7 @@ export async function buildNodeCatalog() {
     capabilities,
     drives: shared,
     compute: ollama,
+    stats,
     tunnelUrl,
     version: '2.0.0',
   }
