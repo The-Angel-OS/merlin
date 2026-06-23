@@ -11,9 +11,10 @@ import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useConnection } from '@/hooks/useConnection'
+import { NodeLockOn } from '@/components/NodeLockOn'
 import { probeEndeavor, type EndeavorManifest } from '@/lib/federation'
 import {
-  ArrowLeft, Radio, ShieldCheck, AlertCircle, LogIn, Sparkles, Building2, Tag,
+  ArrowLeft, Radio, ShieldCheck, AlertCircle, LogIn, Sparkles, Building2, Tag, PlugZap,
 } from 'lucide-react'
 
 export default function EndeavorDetailPage() {
@@ -160,6 +161,21 @@ export default function EndeavorDetailPage() {
             Probing {domain}…
           </div>
         )}
+      </section>
+
+      {/* ─── Lock this node on ───────────────────────────────────────── */}
+      {/* The primary Merlin action: bind THIS machine to the endeavor + start
+          beaming. Config-free — no human login required (uses NODE_REGISTER_KEY). */}
+      <section className="mb-6 rounded-lg border p-5" style={{ borderColor: '#f5a62333', background: '#f5a62308' }}>
+        <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold" style={{ color: '#eef2ff' }}>
+          <PlugZap className="h-4 w-4" style={{ color: '#f5a623' }} />
+          Lock this Merlin onto {manifest?.endeavorName ?? fromDirectory?.name ?? slug}
+        </h2>
+        <p className="mb-1 text-xs" style={{ color: '#7788aa' }}>
+          Makes this machine a node for the endeavor and starts beaming its catalog —
+          no sign-in needed.
+        </p>
+        <NodeLockOn slug={slug} name={manifest?.endeavorName ?? fromDirectory?.name ?? slug} domain={domain} />
       </section>
 
       {/* ─── Sign-in form ────────────────────────────────────────────── */}
