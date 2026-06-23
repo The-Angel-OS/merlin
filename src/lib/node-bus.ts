@@ -141,8 +141,10 @@ export async function pollOnce(): Promise<{ handled: number }> {
     const reply = `${text}${requestId ? `\n\n_(request ${requestId})_` : ''}`
     try {
       const post = await coreFetch(s.boundAngelsUrl, '/api/chat/send', s.nodeToken, {
+        // content MUST be the {text} shape — Core's Messages.content is a required
+        // JSON field that rejects a bare string ("field is invalid: Content" → 500).
         method: 'POST',
-        body: JSON.stringify({ space: s.busSpaceId, channel: s.busChannel, content: reply, messageType: 'system' }),
+        body: JSON.stringify({ space: s.busSpaceId, channel: s.busChannel, content: { text: reply }, messageType: 'system' }),
       })
       if (post.ok) {
         handled++
