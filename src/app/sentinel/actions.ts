@@ -22,22 +22,15 @@ export async function getSentinelData() {
 }
 
 export interface SentinelConfig {
-  device?: string
-  window?: string
+  /** Source specs: "camera:Name" | "window:Title". Multi-source. */
+  sources?: string[]
   intervalMs?: number
   threshold?: number
 }
 
 export async function startSentinelAction(cfg: SentinelConfig) {
   const patch: Record<string, unknown> = {}
-  // device + window are mutually exclusive — setting one clears the other.
-  if (typeof cfg.window === 'string' && cfg.window) {
-    patch.sentinelWindow = cfg.window
-    patch.sentinelDevice = ''
-  } else if (typeof cfg.device === 'string') {
-    patch.sentinelDevice = cfg.device
-    patch.sentinelWindow = ''
-  }
+  if (Array.isArray(cfg.sources)) patch.sentinelSources = cfg.sources.filter((x) => typeof x === 'string' && x)
   if (typeof cfg.intervalMs === 'number' && cfg.intervalMs >= 1000) patch.sentinelIntervalMs = cfg.intervalMs
   if (typeof cfg.threshold === 'number' && cfg.threshold > 0 && cfg.threshold <= 1) patch.sentinelThreshold = cfg.threshold
   if (Object.keys(patch).length) updateSettings(patch)
