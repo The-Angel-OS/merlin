@@ -22,6 +22,22 @@ export default function ConnectionPill() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
+  // The AUTHORITATIVE node binding from the server (the same truth the home screen
+  // and the autonomous heartbeat use). A Merlin can be locked on without a browser
+  // session, so the pill must reflect the binding, not just localStorage. (Ponytail.)
+  const [binding, setBinding] = useState<{ lockedOn: boolean; endeavor: string | null } | null>(null)
+  useEffect(() => {
+    const load = () =>
+      fetch('/api/system')
+        .then(r => r.json())
+        .then(d => setBinding(d.binding ?? null))
+        .catch(() => {})
+    load()
+    const iv = setInterval(load, 30_000)
+    return () => clearInterval(iv)
+  }, [])
+  const boundEndeavor = binding?.lockedOn ? binding.endeavor : null
+
   // Close on outside click.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -33,6 +49,20 @@ export default function ConnectionPill() {
   }, [open])
 
   if (!active && sessions.length === 0) {
+    // Node is locked on server-side but no browser session yet → show the bound
+    // Endeavor (green), linking to /connect to sign in. Otherwise: invite to connect.
+    if (boundEndeavor) {
+      return (
+        <Link
+          href="/connect"
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-lcars-green/40 bg-lcars-green/8 text-lcars-green text-[10px] font-mono hover:bg-lcars-green/15 transition-colors"
+          title={`Locked onto ${boundEndeavor} · sign in to manage`}
+        >
+          <span className="size-1.5 rounded-full bg-lcars-green shrink-0" style={{ animation: 'liveness-dot-pulse 1.2s ease-in-out infinite' }} />
+          <span className="max-w-[120px] truncate">{boundEndeavor}</span>
+        </Link>
+      )
+    }
     return (
       <Link
         href="/connect"

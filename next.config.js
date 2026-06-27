@@ -101,4 +101,10 @@ try {
   // @ducanh2912/next-pwa not installed yet — run: pnpm add @ducanh2912/next-pwa
 }
 
-module.exports = nextConfig
+// Payload wrapper — mounts the embedded CMS admin (/admin) + API. Required by
+// Payload 3's Next integration; applied LAST so it wraps the (optionally PWA-
+// wrapped) config. NOTE: editing next.config.js is disallowed for Core, but
+// explicitly permitted for Merlin (local node CMS) per project direction.
+const { withPayload } = require('@payloadcms/next/withPayload')
+
+module.exports = withPayload(nextConfig)

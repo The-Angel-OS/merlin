@@ -1,0 +1,44 @@
+'use server'
+/**
+ * Server actions for the Sentinel page — the owner's local UI controls its own node
+ * directly (no HTTP key-gate; that gate is for REMOTE peer calls). Reads sources +
+ * submittals + status, and starts/stops the change-detection sentinel.
+ */
+import { startSentinel, stopSentinel, sentinelStatus } from '@/lib/sentinel'
+import { listCameras, listWindows } from '@/lib/camera'
+import { getSubmittals, getSettings, updateSettings } from '@/lib/store'
+
+export async function getSentinelData() {
+  const [cams, wins, submittals] = await Promise.all([listCameras(), listWindows(), getSubmittals(120)])
+  const s = getSettings()
+  return {
+    status: sentinelStatus(),
+    cameras: cams.cameras,
+    windows: wins.windows,
+    submittals,
+    boundEndeavor: s.boundEndeavor || '',
+    boundAngelsUrl: s.boundEndeavor ? s.boundAngelsUrl : '',
+  }
+}
+
+export interface SentinelConfig {
+  /** Source specs: "camera:Name" | "window:Title". Multi-source. */
+  sources?: string[]
+  intervalMs?: number
+  threshold?: number
+}
+
+export async function startSentinelAction(cfg: SentinelConfig) {
+  const patch: Record<string, unknown> = {}
+  if (Array.isArray(cfg.sources)) patch.sentinelSources = cfg.sources.filter((x) => typeof x === 'string' && x)
+  if (typeof cfg.intervalMs === 'number' && cfg.intervalMs >= 1000) patch.sentinelIntervalMs = cfg.intervalMs
+  if (typeof cfg.threshold === 'number' && cfg.threshold > 0 && cfg.threshold <= 1) patch.sentinelThreshold = cfg.threshold
+  if (Object.keys(patch).length) updateSettings(patch)
+  startSentinel()
+  return sentinelStatus()
+}
+
+export async function stopSentinelAction() {
+  stopSentinel()
+  return sentinelStatus()
+}

@@ -8,10 +8,18 @@
  */
 import { buildNodeCatalog } from '@/lib/node-catalog'
 import { getSettings, updateSettings, appendLog, addSubmittal } from '@/lib/store'
-import { listSharedMedia } from '@/lib/nodeSkills'
+import { listSharedMedia, listBrowsableFiles } from '@/lib/nodeSkills'
 
 const HEARTBEAT_MS = 120_000 // re-register every 2 min (Core's online window is 5 min)
 const POLL_MS = 8_000 // poll the command channel every 8s
+
+/**
+ * Sentinel that prefixes a structured skill payload embedded in a result message's
+ * text (because Core's chat-send drops metadata). Core's node-files handler parses
+ * the line `<SENTINEL>:<requestId>:<json>` back into structured data. Keep in sync
+ * with the Core-side constant in src/endpoints/node-ops.ts.
+ */
+const RESULT_SENTINEL = '@@ANGELS_RESULT@@'
 
 /** requestIds already handled this process — belt-and-braces over the cursor. */
 const processed = new Set<string>()
@@ -64,6 +72,55 @@ export async function registerNode(args: RegisterArgs = {}): Promise<{ ok: boole
   return { ok: true, status: res.status, core }
 }
 
+/** A unit of locally-served inference to report UP to Core's cost ledger. */
+export interface UsageReport {
+  provider?: string
+  model?: string
+  backend?: string
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+  tokensPerSec?: number
+  latencyMs?: number
+  ttftMs?: number
+  finishReason?: string
+  toolCallCount?: number
+  costCents?: number
+  conversationId?: string
+  occurredAt?: string
+}
+
+/**
+ * Report a locally-served inference turn UP to Core's Operating-Costs ledger
+ * (POST /api/node-ops/usage). This is the compute-commons meter: every brain turn
+ * Merlin serves on its OWN compute becomes a CostEvent Core can account/mint on.
+ *
+ * Fire-and-forget + fail-soft: metering must NEVER break or slow a brain turn.
+ * No binding (endeavor/Core URL/key) ⇒ silently skip — a node can contribute
+ * intelligence without being bound, it just won't be metered until it is.
+ */
+export async function reportUsage(usage: UsageReport): Promise<void> {
+  try {
+    const s = getSettings()
+    const endeavor = (s.boundEndeavor || '').trim()
+    const angelsUrl = (s.boundAngelsUrl || process.env.NEXT_PUBLIC_ANGELS_URL || '').replace(/\/$/, '')
+    const key = process.env.NODE_REGISTER_KEY || ''
+    if (!endeavor || !angelsUrl || !key) return // unbound → not metered (by design)
+
+    const catalog = await buildNodeCatalog().catch(() => null)
+    const nodeId = catalog?.hostname
+
+    await fetch(`${angelsUrl}/api/node-ops/usage?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endeavor, nodeId, usage }),
+      signal: AbortSignal.timeout(8_000),
+    }).catch(() => {})
+  } catch {
+    // never throw — metering is a sidecar, not a dependency.
+  }
+}
+
 /** Authenticate to Core as the node system-user via the payload-token cookie. */
 function coreFetch(base: string, path: string, token: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${base}${path}`, {
@@ -99,7 +156,7 @@ export async function submitSnapshot(
     const d = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
     if (!res.ok) return { ok: false, error: typeof d?.error === 'string' ? d.error : `media post ${res.status}` }
     if (typeof d?.url === 'string') {
-      addSubmittal({ at: new Date().toISOString(), filename, url: d.url, source: alt || filename, endeavor: s.boundEndeavor })
+      void addSubmittal({ at: new Date().toISOString(), filename, url: d.url, source: alt || filename, endeavor: s.boundEndeavor }).catch(() => {})
     }
     return { ok: true, url: typeof d?.url === 'string' ? d.url : undefined }
   } catch (e) {
@@ -113,8 +170,12 @@ type BusMessage = {
   metadata?: { kind?: string; requestId?: string; tool?: string; args?: Record<string, unknown> } | null
 }
 
-/** Run the matching skill for a node-command and return human-readable result text. */
-async function runCommand(tool: string, cmdArgs: Record<string, unknown>): Promise<{ text: string }> {
+/**
+ * Run the matching skill for a node-command. Returns human-readable `text` (posted
+ * as the chat-visible result) and, for structured skills (e.g. list_files for the
+ * directory browser), an optional `data` payload echoed back in the result metadata.
+ */
+async function runCommand(tool: string, cmdArgs: Record<string, unknown>): Promise<{ text: string; data?: unknown }> {
   if (tool === 'list_media') {
     const r = listSharedMedia({ query: typeof cmdArgs.query === 'string' ? cmdArgs.query : undefined })
     if (!r.ok) return { text: `Could not list files: ${r.error}.` }
@@ -122,6 +183,18 @@ async function runCommand(tool: string, cmdArgs: Record<string, unknown>): Promi
     const lines = r.files.slice(0, 50).map((f) => `- ${f.path} — ${f.sizeMB} MB`)
     const more = r.count > lines.length ? `\n…and ${r.count - lines.length} more.` : ''
     return { text: `Found ${r.count} file(s) across ${r.roots.join(', ')}:\n${lines.join('\n')}${more}` }
+  }
+  if (tool === 'list_files') {
+    // Structured variant for Merlin Control's directory browser — returns machine
+    // -readable rows (with refs + tunnel hrefs) in `data`, not just prose.
+    const r = listBrowsableFiles({
+      query: typeof cmdArgs.query === 'string' ? cmdArgs.query : undefined,
+      dir: typeof cmdArgs.dir === 'string' ? cmdArgs.dir : undefined,
+    })
+    const text = r.ok
+      ? `Listed ${r.count} shared file(s) across ${r.roots.join(', ') || 'no roots'}.`
+      : `Could not list files: ${r.error}.`
+    return { text, data: r }
   }
   if (tool === 'snap_camera') {
     // Sentinel skill: grab a frame from a local camera OR an on-screen window
@@ -200,8 +273,13 @@ export async function pollOnce(): Promise<{ handled: number }> {
       continue
     }
 
-    const { text } = await runCommand(tool, meta.args || {})
-    const reply = `${text}${requestId ? `\n\n_(request ${requestId})_` : ''}`
+    const { text, data } = await runCommand(tool, meta.args || {})
+    // Core's /api/chat/send DROPS metadata (only text persists), so structured
+    // skills (list_files) embed their JSON payload in the message text behind a
+    // sentinel + the requestId. Core's node-files handler greps it back out.
+    const payloadBlock =
+      data !== undefined ? `\n\n${RESULT_SENTINEL}:${requestId}:${JSON.stringify(data)}` : ''
+    const reply = `${text}${requestId ? `\n\n_(request ${requestId})_` : ''}${payloadBlock}`
     let posted = false
     try {
       const post = await coreFetch(s.boundAngelsUrl, '/api/chat/send', s.nodeToken, {

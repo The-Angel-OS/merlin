@@ -12,8 +12,8 @@
  */
 import sharp from 'sharp'
 import { captureFrame } from './camera'
-import { submitSnapshot } from './node-bus'
 import { getSettings, updateSettings, appendLog } from './store'
+import { logSignal } from './messageLog'
 
 export type SourceLast = {
   at: string
@@ -97,12 +97,24 @@ async function tickSource(spec: string): Promise<void> {
   g.last[label] = { at: now(), changed, diff }
   if (!changed) return
 
-  const up = await submitSnapshot(snap.buffer, snap.filename!, snap.mimetype!, `Sentinel: change Δ${(diff * 100).toFixed(1)}% on ${snap.device}`)
-  g.last[label].url = up.url
-  appendLog({
-    type: up.ok ? 'angels' : 'error',
-    source: 'sentinel',
-    message: up.ok ? `${label}: change Δ${(diff * 100).toFixed(1)}% → submitted ${up.url}` : `${label}: change but submit failed: ${up.error}`,
+  // Route the change through the local triaging MessageLog instead of submitting
+  // unconditionally. The log persists it, triage() scores it by delta size, and
+  // only worthy changes graduate up to Core via the node-bus Submitter (which
+  // ships the base64 frame through the Media bridge). The signal id keys on
+  // source+timestamp so re-logging is idempotent.
+  await logSignal({
+    type: 'sentinel.change',
+    id: `${label}:${snap.filename}`,
+    payload: {
+      diff,
+      device: snap.device,
+      label,
+      // The Submitter graduates an image signal via the Media bridge.
+      dataBase64: snap.buffer.toString('base64'),
+      filename: snap.filename,
+      mimetype: snap.mimetype,
+      alt: `Sentinel: change Δ${(diff * 100).toFixed(1)}% on ${snap.device}`,
+    },
   })
 }
 

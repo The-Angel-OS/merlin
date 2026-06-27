@@ -10,6 +10,7 @@ import { getSettings, appendLog } from './store'
 import { TOOLS } from './leoTools'
 import { loadConversation, saveConversation } from './leoChats'
 import { runBrain } from './leoBrain'
+import { reportUsage } from './node-bus'
 import type { NeutralMsg } from './leoProviders'
 
 const SYSTEM = `You are LEO, the local AI for this Merlin node — an Angel OS media server that runs on the user's own box. You can use local tools to inspect and change configuration, transcribe URLs, and list media on this machine. Prefer DOING the work with a tool over telling the user to do it by hand (e.g. if asked to set a key, call set_config). Report what you actually did, concisely. Secrets are never shown in full.`
@@ -21,6 +22,7 @@ export async function runAgent(conversationId: string, userText: string): Promis
   const convo = loadConversation(conversationId)
   const prior: NeutralMsg[] = convo.messages.map(stripAt)
 
+  const startedAt = Date.now()
   const r = await runBrain({
     messages: prior,
     userText,
@@ -31,9 +33,12 @@ export async function runAgent(conversationId: string, userText: string): Promis
       // Accept Angel OS's GOOGLE_AI_API_KEY name as well as GEMINI_API_KEY.
       geminiApiKey: s.geminiApiKey || process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '',
       anthropicApiKey: s.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '',
-      // Local Ollama fallback — used for cheap turns when no cloud key is set.
-      ollamaUrl: process.env.OLLAMA_URL || 'http://127.0.0.1:11434',
-      ollamaModel: process.env.OLLAMA_MODEL || '',
+      // Ollama — local daemon for the config-free free fallback, OR a hosted
+      // :cloud model (e.g. nemotron-3-super:cloud) when ollamaModel is a :cloud
+      // tag + an account token is set. Settings first, then env.
+      ollamaUrl: s.ollamaUrl || process.env.OLLAMA_URL || 'http://127.0.0.1:11434',
+      ollamaModel: s.ollamaModel || process.env.OLLAMA_MODEL || '',
+      ollamaApiKey: s.ollamaApiKey || process.env.OLLAMA_API_KEY || '',
     },
     system: SYSTEM,
   })
@@ -48,6 +53,17 @@ export async function runAgent(conversationId: string, userText: string): Promis
     source: 'leo-agent',
     message: `[${r.provider}] ${userText.slice(0, 50)} (${r.steps} steps; tools: ${r.toolsUsed.join(', ') || 'none'})`,
   })
+
+  // Meter this locally-served brain turn UP to Core's cost ledger (compute commons).
+  // Fire-and-forget — reportUsage is fail-soft and won't slow or break the turn.
+  void reportUsage({
+    provider: r.provider,
+    model: s.ollamaModel || process.env.OLLAMA_MODEL || undefined,
+    latencyMs: Date.now() - startedAt,
+    toolCallCount: r.toolsUsed.length || undefined,
+    conversationId,
+  })
+
   return { response: r.response, steps: r.steps, toolsUsed: r.toolsUsed, provider: r.provider }
 }
 

@@ -49,7 +49,7 @@ export async function payloadFetch<T = any>(
   path: string,
   init?: RequestInit,
 ): Promise<PayloadResult<T>> {
-  const settings = await getSettings()
+  const settings = getSettings()
   const baseUrl = (settings.angelsApiUrl as string) || 'https://www.spacesangels.com'
   const apiKey = settings.angelsApiKey as string | undefined
 

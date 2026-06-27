@@ -60,15 +60,15 @@ export async function initWatcher(): Promise<void> {
         const ext = extname(path)
         const event: WatchEvent = { type: 'add', path, name, timestamp: new Date().toISOString(), size: stats.size }
 
-        upsertFile({
+        void upsertFile({
           path, name, ext,
           category: categorize(ext) as any,
           size: stats.size,
           detectedAt: new Date().toISOString(),
           status: 'new',
-        })
+        }).catch(() => {})
 
-        appendLog({ type: 'file_arrived', source: 'watcher', message: `New file: ${name}`, metadata: { path, size: stats.size, category: categorize(ext) } })
+        void appendLog({ type: 'file_arrived', source: 'watcher', message: `New file: ${name}`, metadata: { path, size: stats.size, category: categorize(ext) } }).catch(() => {})
         broadcast(event)
       } catch {}
     })

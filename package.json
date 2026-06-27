@@ -9,13 +9,20 @@
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "next lint",
     "icons": "node scripts/generate-icons.mjs",
+    "payload": "payload",
+    "generate:types": "payload generate:types",
+    "generate:importmap": "payload generate:importmap",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@angel-os/brain": "file:../angel-brain",
     "@ducanh2912/next-pwa": "^10.2.9",
+    "@payloadcms/db-sqlite": "3.77.0",
+    "@payloadcms/next": "3.77.0",
+    "@payloadcms/richtext-lexical": "3.77.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/postcss": "^4.1.13",
     "autoprefixer": "^10.4.20",
@@ -27,14 +34,17 @@
     "framer-motion": "^12.38.0",
     "geist": "^1.7.0",
     "googleapis": "^171.4.0",
+    "graphql": "^16.14.2",
     "idb": "^8.0.3",
     "livekit-client": "^2.18.3",
     "livekit-server-sdk": "^2.15.1",
     "lucide-react": "^0.460.0",
     "next": "^15.5.4",
     "node-schedule": "^2.1.1",
+    "payload": "3.77.0",
     "postcss": "^8.4.49",
     "react": "^19.1.1",
+    "sharp": "^0.34.4",
     "react-dom": "^19.1.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^3.4.17",
@@ -53,8 +63,15 @@
     "fake-indexeddb": "^6.2.5",
     "https-localhost": "^4.7.1",
     "jsdom": "^29.0.2",
-    "sharp": "^0.35.2",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "sharp",
+      "esbuild",
+      "@tailwindcss/oxide"
+    ]
   }
 }

@@ -1,0 +1,60 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260622203301
+Username: IAM0\kenne
+RunAs User: IAM0\kenne
+Configuration Name: 
+Machine: IAM0 (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Dev\merlin\install-merlin-service.ps1
+Process ID: 79620
+PSVersion: 5.1.26100.8655
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8655
+BuildVersion: 10.0.26100.8655
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is C:\Dev\merlin\logs\service-install.log
+nssm.exe : Can't open service!
+At C:\Dev\merlin\install-merlin-service.ps1:13 char:1
++ & $nssm stop Merlin 2>$null
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Can't open service!:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+OpenService(): The specified service does not exist as an installed service.
+
+
+
+
+nssm.exe : Can't open service!
+At C:\Dev\merlin\install-merlin-service.ps1:14 char:1
++ & $nssm remove Merlin confirm 2>$null
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Can't open service!:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+OpenService(): The specified service does not exist as an installed service.
+
+
+
+
+Service "Merlin" installed successfully!
+Set parameter "AppDirectory" for service "Merlin".
+Set parameter "DisplayName" for service "Merlin".
+Set parameter "Description" for service "Merlin".
+Set parameter "Start" for service "Merlin".
+Reset parameter "AppExit" for service "Merlin" to its default.
+Set parameter "AppRestartDelay" for service "Merlin".
+Set parameter "AppStdout" for service "Merlin".
+Set parameter "AppStderr" for service "Merlin".
+Set parameter "AppRotateFiles" for service "Merlin".
+Set parameter "AppRotateBytes" for service "Merlin".
+Merlin: START: The operation completed successfully.
+STATUS: SERVICE_RUNNING
+**********************
+Windows PowerShell transcript end
+End time: 20260622203308
+**********************
