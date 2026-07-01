@@ -101,6 +101,9 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.9.1
@@ -126,6 +129,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.1.5
         version: 19.1.9(@types/react@19.1.16)
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       '@vitejs/plugin-react':
         specifier: ^6.0.1
         version: 6.0.1(vite@8.0.8(@types/node@22.18.8)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.77.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.1))

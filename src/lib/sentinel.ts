@@ -1,39 +1,22 @@
-/**
- * sentinel.ts — change-detection camera/window sentinel, MULTI-SOURCE.
- *
- * Watches one OR MANY sources (cameras via dshow, windows via gdigrab), each with its
- * own baseline. Each tick captures every source in turn, fingerprints it (sharp →
- * 64x64 grayscale), compares to that source's previous frame (mean-abs-diff), and
- * submits through the file bridge ONLY when the scene changed beyond a threshold.
- *
- * Black/occluded windows (gdigrab returns a near-black frame for minimized/occluded
- * windows) are detected and skipped with a clear log instead of submitting black —
- * the pragmatic handling for the gdigrab black-window limitation.
- */
 import sharp from 'sharp'
 import { captureFrame } from './camera'
-import { getSettings, updateSettings, appendLog } from './store'
-import { logSignal } from './messageLog'
-
-export type SourceLast = {
-  at: string
-  changed: boolean
-  diff: number
-  blank?: boolean
-  url?: string
-  error?: string
-}
-declare global {
-  // eslint-disable-next-line no-var
-  var __merlinSentinel:
-    | { timer?: NodeJS.Timeout; running?: boolean; busy?: boolean; prev: Record<string, Buffer>; last: Record<string, SourceLast> }
-    | undefined
-}
+import { getSettings, appendLog } from './store'
+import { registerProducer, registerEye, unregisterEye, startEye, stopEye, activeWitnesses, emitSignal } from './witness-engine'
+import { ingestSignal } from './react-engine'
+import { analyzeFrame } from './bolo-engine'
+import type { EyeConfig, Signal, EyeState } from './witness-types'
+import type { SnapResult } from './camera'
 
 const DIM = 64
-const BLANK_MAX = 12 // a 64x64 grayscale frame whose brightest pixel is below this ≈ all-black
+const BLANK_MAX = 12
 
-/** Parse a source spec "camera:Name" / "window:Title" → captureFrame args + label. */
+interface SourcePrev {
+  buffer: Buffer
+  label: string
+}
+
+const prevFrames = new Map<string, SourcePrev>()
+
 function parseSource(spec: string): { device?: string; window?: string; label: string } {
   const i = spec.indexOf(':')
   const kind = i >= 0 ? spec.slice(0, i) : 'camera'
@@ -41,7 +24,6 @@ function parseSource(spec: string): { device?: string; window?: string; label: s
   return kind === 'window' ? { window: name, label: spec } : { device: name, label: spec }
 }
 
-/** The sources to watch: explicit multi-source list, else the legacy single source. */
 export function resolveSources(): string[] {
   const s = getSettings()
   if (s.sentinelSources && s.sentinelSources.length) return s.sentinelSources
@@ -62,118 +44,138 @@ function meanAbsDiff(a: Buffer, b: Buffer): number {
   return sum / n / 255
 }
 
-/** Near-black frame (minimized/occluded window) — the brightest pixel is ~0. */
 function isBlank(fp: Buffer): boolean {
   let max = 0
   for (let i = 0; i < fp.length; i++) if (fp[i] > max) max = fp[i]
   return max < BLANK_MAX
 }
 
-async function tickSource(spec: string): Promise<void> {
-  const g = globalThis.__merlinSentinel!
-  const now = () => new Date().toISOString()
+async function cameraEyeProducer(eye: EyeState): Promise<Signal | null> {
+  const spec = eye.config.source || ''
   const { device, window, label } = parseSource(spec)
+  const s = getSettings()
+  const threshold = s.sentinelThreshold > 0 ? s.sentinelThreshold : 0.04
 
   const snap = await captureFrame({ device, window })
-  if (!snap.ok || !snap.buffer) {
-    g.last[label] = { at: now(), changed: false, diff: 0, error: snap.error }
-    return
-  }
+  if (!snap.ok || !snap.buffer) return null
 
   const fp = await fingerprint(snap.buffer)
   if (isBlank(fp)) {
-    g.prev[label] = fp
-    g.last[label] = { at: now(), changed: false, diff: 0, blank: true }
-    appendLog({ type: 'system', source: 'sentinel', message: `${label}: blank frame (minimized/occluded?) — skipped` })
-    return
+    prevFrames.set(label, { buffer: fp, label })
+    return null
   }
 
-  const s = getSettings()
-  const threshold = s.sentinelThreshold > 0 ? s.sentinelThreshold : 0.04
-  const prev = g.prev[label]
-  const diff = prev ? meanAbsDiff(prev, fp) : 1 // first non-blank frame = baseline → submits
-  g.prev[label] = fp
-  const changed = diff >= threshold
-  g.last[label] = { at: now(), changed, diff }
-  if (!changed) return
+  const prev = prevFrames.get(label)
+  const diff = prev ? meanAbsDiff(prev.buffer, fp) : 1
+  prevFrames.set(label, { buffer: fp, label })
 
-  // Route the change through the local triaging MessageLog instead of submitting
-  // unconditionally. The log persists it, triage() scores it by delta size, and
-  // only worthy changes graduate up to Core via the node-bus Submitter (which
-  // ships the base64 frame through the Media bridge). The signal id keys on
-  // source+timestamp so re-logging is idempotent.
-  await logSignal({
-    type: 'sentinel.change',
-    id: `${label}:${snap.filename}`,
-    payload: {
+  if (diff < threshold) return null
+
+  const base64 = snap.buffer.toString('base64')
+
+  // Fire-and-forget BOLO vision analysis — this runs an LLM on the frame
+  // in the background. It never blocks motion detection.
+  void analyzeFrame(base64, label)
+    .then((result) => {
+      if (!result.ok || !result.analysis) return
+      emitSignal({
+        id: `${eye.config.id}:bolo:${Date.now()}`,
+        eyeId: eye.config.id,
+        eyeType: 'camera',
+        type: 'bolo_analysis',
+        confidence: result.analysis.confidence,
+        summary: `BOLO: ${result.analysis.scene}`,
+        timestamp: new Date().toISOString(),
+        mediaUrl: snap.filename,
+        location: eye.config.location,
+        metadata: {
+          bolo: result.analysis,
+          model: result.model,
+          elapsedMs: result.elapsedMs,
+        },
+      })
+    })
+    .catch(() => {})
+
+  return {
+    id: `${eye.config.id}:${Date.now()}`,
+    eyeId: eye.config.id,
+    eyeType: 'camera',
+    type: 'motion',
+    confidence: Math.min(1, diff / 0.1),
+    summary: `Motion detected on ${snap.device || label} (Δ${(diff * 100).toFixed(1)}%)`,
+    timestamp: new Date().toISOString(),
+    mediaUrl: snap.filename,
+    location: eye.config.location,
+    metadata: {
       diff,
       device: snap.device,
       label,
-      // The Submitter graduates an image signal via the Media bridge.
-      dataBase64: snap.buffer.toString('base64'),
+      analysisPending: true,
+      dataBase64: base64,
       filename: snap.filename,
       mimetype: snap.mimetype,
-      alt: `Sentinel: change Δ${(diff * 100).toFixed(1)}% on ${snap.device}`,
     },
-  })
-}
-
-async function tick(): Promise<void> {
-  const g = globalThis.__merlinSentinel
-  if (!g || g.busy) return
-  g.busy = true
-  try {
-    if (!getSettings().sentinelEnabled) return
-    // Sequential — ffmpeg grabs one device/window at a time to avoid contention.
-    for (const spec of resolveSources()) await tickSource(spec)
-  } catch (e) {
-    appendLog({ type: 'error', source: 'sentinel', message: `tick error: ${e instanceof Error ? e.message : e}` })
-  } finally {
-    g.busy = false
   }
 }
 
+export function enableCameraEyes(config?: Partial<EyeConfig>): void {
+  registerProducer('camera', cameraEyeProducer)
+  const sources = resolveSources()
+
+  for (const spec of sources) {
+    const { label } = parseSource(spec)
+    const eyeId = `camera:${label.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+    registerEye({
+      id: eyeId,
+      type: 'camera',
+      label: `Camera: ${label}`,
+      enabled: true,
+      intervalMs: (config?.intervalMs ?? getSettings().sentinelIntervalMs) || 5000,
+      source: spec,
+      threshold: (config?.threshold ?? getSettings().sentinelThreshold) || 0.04,
+      location: config?.location,
+    })
+    startEye(eyeId)
+  }
+
+  if (sources.length) {
+    appendLog({ type: 'system', source: 'sentinel', message: `camera eyes enabled: ${sources.join(', ')}` })
+  }
+}
+
+export function disableCameraEyes(): void {
+  for (const eye of activeWitnesses()) {
+    if (eye.type === 'camera') {
+      stopEye(eye.id)
+      unregisterEye(eye.id)
+    }
+  }
+  prevFrames.clear()
+  appendLog({ type: 'system', source: 'sentinel', message: 'camera eyes disabled' })
+}
+
 export function startSentinel(): { running: boolean; intervalMs: number } {
-  updateSettings({ sentinelEnabled: true })
-  const g = globalThis.__merlinSentinel || (globalThis.__merlinSentinel = { prev: {}, last: {} })
   const s = getSettings()
   const intervalMs = s.sentinelIntervalMs >= 1000 ? s.sentinelIntervalMs : 5000
-  if (g.running) return { running: true, intervalMs }
-  g.running = true
-  g.prev = {}
-  g.last = {}
-  void tick()
-  g.timer = setInterval(() => void tick(), intervalMs)
-  appendLog({
-    type: 'system',
-    source: 'sentinel',
-    message: `sentinel started — ${resolveSources().length} source(s), every ${intervalMs}ms, threshold ${(s.sentinelThreshold || 0.04)}`,
-  })
+  enableCameraEyes({ intervalMs })
   return { running: true, intervalMs }
 }
 
 export function stopSentinel(): { running: boolean } {
-  updateSettings({ sentinelEnabled: false })
-  const g = globalThis.__merlinSentinel
-  if (g?.timer) clearInterval(g.timer)
-  if (g) {
-    g.running = false
-    g.timer = undefined
-    g.prev = {}
-  }
-  appendLog({ type: 'system', source: 'sentinel', message: 'sentinel stopped' })
+  disableCameraEyes()
   return { running: false }
 }
 
 export function sentinelStatus() {
-  const g = globalThis.__merlinSentinel
   const s = getSettings()
+  const witnesses = activeWitnesses().filter((w) => w.type === 'camera')
   return {
-    running: Boolean(g?.running),
+    running: witnesses.some((w) => w.status === 'active'),
     enabled: s.sentinelEnabled,
     sources: resolveSources(),
+    eyes: witnesses,
     intervalMs: s.sentinelIntervalMs || 5000,
     threshold: s.sentinelThreshold || 0.04,
-    last: g?.last || {},
   }
 }

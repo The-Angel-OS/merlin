@@ -9,6 +9,7 @@
 import { buildNodeCatalog } from '@/lib/node-catalog'
 import { getSettings, updateSettings, appendLog, addSubmittal } from '@/lib/store'
 import { listSharedMedia, listBrowsableFiles } from '@/lib/nodeSkills'
+import { autoProvisionOllama } from '@/lib/ollama'
 
 const HEARTBEAT_MS = 120_000 // re-register every 2 min (Core's online window is 5 min)
 const POLL_MS = 8_000 // poll the command channel every 8s
@@ -388,6 +389,13 @@ export function startNodeBusLoop(): void {
   if (globalThis.__merlinNodeBusLoop) return
   globalThis.__merlinNodeBusLoop = {}
 
+  // Start the Witness Engine (perception loop) and React Engine (autonomic responses).
+  void import('@/lib/witness-engine').then(({ startEngine }) => startEngine()).catch(() => {})
+  void import('@/lib/react-engine').then(({ startReactEngine }) => startReactEngine()).catch(() => {})
+
+  // Start the Events WebSocket server for real-time signal push to local subscribers.
+  void import('@/lib/events-server').then(({ startEventsServer }) => startEventsServer()).catch(() => {})
+
   const heartbeat = async () => {
     const bound = Boolean(getSettings().boundEndeavor)
     // If not yet bound but env preconfigures an endeavor, auto-lock-on this tick.
@@ -396,6 +404,8 @@ export function startNodeBusLoop(): void {
         ? { endeavor: PRECONFIG_ENDEAVOR, angelsUrl: PRECONFIG_ANGELS_URL || undefined }
         : {}
     if (!bound && !PRECONFIG_ENDEAVOR) return // unbound + no preconfig → nothing to do
+    // Ensure Ollama is detected + running before registering compute capabilities.
+    void autoProvisionOllama().catch(() => {})
     try {
       const r = await registerNode(args)
       if (r.ok && !bound) {

@@ -7,14 +7,12 @@ import { Input } from '@/components/ui/input'
 import { getSentinelData, startSentinelAction, stopSentinelAction } from './actions'
 
 type Submittal = { at: string; filename: string; url: string; source: string; endeavor: string }
-type SourceLast = { at: string; changed: boolean; diff: number; blank?: boolean; url?: string; error?: string }
 type Status = {
   running: boolean
   enabled: boolean
   sources: string[]
   intervalMs: number
   threshold: number
-  last: Record<string, SourceLast>
 }
 
 export default function SentinelPage() {
@@ -87,20 +85,11 @@ export default function SentinelPage() {
   const label = (spec: string) => spec.replace(/^(camera|window):/, '')
 
   const SourceRow = ({ spec, icon }: { spec: string; icon: React.ReactNode }) => {
-    const last = status?.last?.[spec]
     return (
       <label className="flex items-center gap-2 rounded px-2 py-1 text-xs hover:bg-muted/30 cursor-pointer">
         <input type="checkbox" checked={selected.has(spec)} onChange={() => toggle(spec)} className="accent-lcars-green" />
         {icon}
         <span className="flex-1 truncate">{label(spec)}</span>
-        {last ? (
-          <span
-            className={`text-[10px] font-mono ${last.error ? 'text-lcars-red' : last.blank ? 'text-lcars-amber' : last.changed ? 'text-lcars-green' : 'text-muted-foreground'}`}
-            title={last.error || ''}
-          >
-            {last.error ? 'err' : last.blank ? 'blank' : `Δ${(last.diff * 100).toFixed(0)}%`}
-          </span>
-        ) : null}
       </label>
     )
   }

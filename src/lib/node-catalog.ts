@@ -135,6 +135,14 @@ export async function buildNodeCatalog() {
 
   const stats = await nodeStats()
 
+  // Active witnesses (eyes) are advertised in the heartbeat so the federation
+  // knows what this node is perceiving. Dynamic import avoids circular deps.
+  let witnesses: Array<{ id: string; type: string; label: string; status: string; lastSignalAt?: string }> = []
+  try {
+    const { activeWitnesses } = await import('@/lib/witness-engine')
+    witnesses = activeWitnesses()
+  } catch { /* witness engine not yet loaded */ }
+
   return {
     hostname: os.hostname(),
     localIp: localIPv4(),
@@ -145,6 +153,7 @@ export async function buildNodeCatalog() {
     compute: ollama,
     stats,
     tunnelUrl,
+    witnesses,
     version: '2.0.0',
   }
 }

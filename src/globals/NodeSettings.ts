@@ -69,6 +69,7 @@ export const NodeSettings: GlobalConfig = {
             { name: 'sentinelSources', type: 'json', admin: { description: 'Array of "camera:Name" / "window:Title".' } },
             { name: 'sentinelIntervalMs', type: 'number', defaultValue: 5000 },
             { name: 'sentinelThreshold', type: 'number', defaultValue: 0.04 },
+            { name: 'boloVisionModel', type: 'text', admin: { description: 'Vision model for BOLO analysis (defaults to ollamaModel or "llava").' } },
           ],
         },
         {

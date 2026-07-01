@@ -43,7 +43,7 @@ function db(): Promise<Payload> {
 }
 
 // ─── Activity Log (Payload: activity-log) ─────────────────────────────────────
-export type LogType = 'file_arrived' | 'youtube_update' | 'api_call' | 'incident' | 'system' | 'error' | 'angels' | 'info'
+export type LogType = 'file_arrived' | 'youtube_update' | 'api_call' | 'incident' | 'system' | 'error' | 'angels' | 'info' | 'warning'
 
 export interface LogEntry {
   id: string
@@ -201,6 +201,8 @@ export interface Settings {
   sentinelIntervalMs: number
   /** Change threshold 0..1 (mean abs grayscale diff). ~0.04 = 4% of pixels moved. */
   sentinelThreshold: number
+  /** Vision model for BOLO analysis. Defaults to ollamaModel or "llava". */
+  boloVisionModel: string
 }
 
 const SETTINGS_DEFAULTS: Settings = {
@@ -242,6 +244,7 @@ const SETTINGS_DEFAULTS: Settings = {
   sentinelSources: [],
   sentinelIntervalMs: 5000,
   sentinelThreshold: 0.04,
+  boloVisionModel: '',
 }
 
 /**
