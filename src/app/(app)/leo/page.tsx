@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,9 @@ import { Input, Textarea } from '@/components/ui/input'
 import { Send, Sparkles, Radio, Hash, Clock, FileText, Wand2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface Msg { role: 'user' | 'assistant'; content: string; provider?: string; model?: string; brain?: 'local' | 'remote' }
+interface Msg { role: 'user' | 'assistant'; content: string; provider?: string; model?: string; brain?: 'local' | 'remote'; at?: string }
+
+const CONVERSATION_ID = 'default'
 
 type Brain = 'local' | 'remote'
 
@@ -30,8 +32,28 @@ export default function LeoPage() {
   const [descContent, setDescContent] = useState('')
   const [messages, setMessages] = useState<Msg[]>([])
   const [loading, setLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  // Index cursors into the server's DISPLAY array (append-only → stable across polls):
+  //   firstIndexRef = index of the oldest turn we hold (page-up cursor)
+  //   seenCountRef  = display turns we've incorporated (poll `since` cursor)
+  const firstIndexRef = useRef(0)
+  const seenCountRef = useRef(0)
+  const loadingRef = useRef(false)
+  const loadingMoreRef = useRef(false) // synchronous reentrancy guard (state lags a tick)
+  useEffect(() => { loadingRef.current = loading }, [loading])
 
+  const nearBottom = () => {
+    const el = scrollRef.current
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120
+  }
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') =>
+    requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior }))
+
+  // Status strip.
   useEffect(() => {
     Promise.all([
       fetch('/api/angels/status').then(r => r.json()),
@@ -41,19 +63,96 @@ export default function LeoPage() {
     }).catch(() => {})
   }, [])
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  // ── Initial window: the last N turns of this node's on-box conversation ──
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        const r = await fetch(`/api/angels/leo/history?conversationId=${CONVERSATION_ID}&limit=10`).then(x => x.json())
+        if (!alive || !r?.ok) return
+        setMessages((r.messages as Msg[]) || [])
+        firstIndexRef.current = r.firstIndex ?? 0
+        seenCountRef.current = r.total ?? (r.messages?.length ?? 0)
+        setHasMore(Boolean(r.hasMore))
+        scrollToBottom('auto')
+      } catch { /* transient — the poll will catch up */ }
+    })()
+    return () => { alive = false }
+  }, [])
+
+  // ── Page-up: prepend older turns, holding the viewport on the same message ──
+  const loadOlder = useCallback(async () => {
+    // Ref guard, not the state flag: rapid scroll events fire this several times in
+    // one tick, before setLoadingMore(true) commits — that double-prepends the window.
+    if (loadingMoreRef.current || loadingRef.current || !hasMore) return
+    loadingMoreRef.current = true
+    const el = scrollRef.current
+    const prevHeight = el?.scrollHeight ?? 0
+    setLoadingMore(true)
+    try {
+      const r = await fetch(
+        `/api/angels/leo/history?conversationId=${CONVERSATION_ID}&limit=20&beforeIndex=${firstIndexRef.current}`,
+      ).then(x => x.json())
+      if (r?.ok && Array.isArray(r.messages) && r.messages.length) {
+        setMessages(prev => [...(r.messages as Msg[]), ...prev])
+        firstIndexRef.current = r.firstIndex ?? 0
+        setHasMore(Boolean(r.hasMore))
+        requestAnimationFrame(() => { if (el) el.scrollTop += el.scrollHeight - prevHeight })
+      } else {
+        setHasMore(false)
+      }
+    } catch { /* leave hasMore set; the user can trigger again */ }
+    setLoadingMore(false)
+    loadingMoreRef.current = false
+  }, [hasMore])
+
+  const onScroll = () => {
+    const el = scrollRef.current
+    if (el && el.scrollTop < 80) void loadOlder()
+  }
+
+  // ── Live append: poll for turns persisted since we last looked (decaying 3s→30s) ──
+  useEffect(() => {
+    let alive = true
+    let delay = 3000
+    let timer: ReturnType<typeof setTimeout>
+    const tick = async () => {
+      // Don't fight an in-flight send — it reconciles its own authoritative turns.
+      if (!loadingRef.current) {
+        try {
+          const r = await fetch(
+            `/api/angels/leo/history?conversationId=${CONVERSATION_ID}&since=${seenCountRef.current}`,
+          ).then(x => x.json())
+          if (alive && r?.ok && Array.isArray(r.messages) && r.messages.length) {
+            const stick = nearBottom()
+            setMessages(prev => [...prev, ...(r.messages as Msg[])])
+            seenCountRef.current = r.total ?? seenCountRef.current
+            delay = 3000
+            if (stick) scrollToBottom()
+          }
+        } catch { /* transient */ }
+      }
+      if (alive) { delay = Math.min(delay * 1.5, 30000); timer = setTimeout(tick, delay) }
+    }
+    timer = setTimeout(tick, delay)
+    return () => { alive = false; clearTimeout(timer) }
+  }, [])
 
   const send = async () => {
     if (loading) return
     if (mode === 'chat' && !input.trim()) return
 
     const userMsg = input || (mode === 'chapters' ? '[SRT content attached]' : mode === 'optimize' ? '[Description attached]' : '[Title attached]')
+    // Optimistic user bubble for instant feedback; reconciled from the store after.
+    const baseLen = messages.length
+    const baseSeen = seenCountRef.current
     setMessages(m => [...m, { role: 'user', content: userMsg }])
     setInput('')
     setLoading(true)
+    scrollToBottom()
 
     const body: any = { action: mode }
-    if (mode === 'chat') { body.prompt = userMsg; body.history = messages.slice(-10); body.brain = brain }
+    if (mode === 'chat') { body.prompt = userMsg; body.history = messages.slice(-10); body.brain = brain; body.conversationId = CONVERSATION_ID }
     if (mode === 'chapters') body.srtContent = srtContent
     if (mode === 'hashtags') { body.title = userMsg; body.description = descContent }
     if (mode === 'optimize') body.description = descContent
@@ -64,7 +163,27 @@ export default function LeoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }).then(r => r.json())
-      setMessages(m => [...m, { role: 'assistant', content: res.response || res.error || '(empty)', provider: res.provider, model: res.model, brain: res.brain }])
+
+      if (mode === 'chat' && res.brain === 'local') {
+        // The on-box brain persisted this turn — replace the optimistic bubble with
+        // the authoritative user + assistant turns from the store (exact, no dupes).
+        let reconciled = false
+        try {
+          const h = await fetch(`/api/angels/leo/history?conversationId=${CONVERSATION_ID}&since=${baseSeen}`).then(r => r.json())
+          if (h?.ok && Array.isArray(h.messages) && h.messages.length) {
+            setMessages(prev => [...prev.slice(0, baseLen), ...(h.messages as Msg[])])
+            seenCountRef.current = h.total ?? (baseSeen + h.messages.length)
+            reconciled = true
+          }
+        } catch { /* fall back to the direct response below */ }
+        if (!reconciled) {
+          setMessages(m => [...m, { role: 'assistant', content: res.response || '(empty)', provider: res.provider, model: res.model, brain: res.brain }])
+        }
+      } else {
+        // Remote LEO / utility modes aren't persisted to the local store — just append.
+        setMessages(m => [...m, { role: 'assistant', content: res.response || res.error || '(empty)', provider: res.provider, model: res.model, brain: res.brain }])
+      }
+      scrollToBottom()
     } catch {
       const failMsg = brain === 'local'
         ? "⚠ Merlin's on-box brain didn't respond — is Ollama running on this node? Working from local cache."
@@ -167,8 +286,13 @@ export default function LeoPage() {
       {/* Chat transcript */}
       {mode !== 'bus' && (
       <Card className="flex-1 p-0 gap-0 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {messages.length === 0 && (
+        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-4 space-y-3">
+          {loadingMore && (
+            <div className="py-1 text-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Loading earlier…
+            </div>
+          )}
+          {messages.length === 0 && !loadingMore && (
             <div className="h-full flex flex-col items-center justify-center text-center">
               <div className="size-14 rounded-full bg-lcars-amber/10 flex items-center justify-center mb-3">
                 <Sparkles className="size-6 text-lcars-amber" />
