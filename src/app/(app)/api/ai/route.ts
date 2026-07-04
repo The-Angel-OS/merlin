@@ -12,11 +12,10 @@ export const runtime = 'nodejs'
  * call into its activity log, injects the account token for `:cloud` models, and
  * returns an Angel-OS-enriched response. Ollama itself stays bound to localhost.
  *
- * Two rails (mirrors /api/node/skill):
- *  1. AUTH — caller presents the node key (NODE_AI_KEY → NODE_SKILL_KEY →
- *     NODE_REGISTER_KEY). No key configured ⇒ the surface is closed (403).
- *  2. POLICY — model allowlist (when MERLIN_AI_ALLOWED_MODELS is set) + a prompt
- *     size cap, applied BEFORE the call reaches Ollama.
+ * Zero-config by default: no auth key required. The gateway URL is discoverable
+ * only through Core's authenticated broker, which gates on endeavor membership.
+ * If NODE_AI_KEY / NODE_SKILL_KEY / NODE_REGISTER_KEY IS set, it is enforced
+ * as a shared secret (optional hardening for production deployments).
  *
  * Body: { model?, messages: [{role,content}], tools?, key?, stream? (ignored) }
  *  - model defaults to the node's configured ollamaModel.
@@ -43,14 +42,16 @@ export async function POST(req: Request) {
     /* defaults */
   }
 
-  // ── Rail 1: auth ──
+  // ── Rail 1: auth (optional) ──
+  // Zero-config default: no key → open (gateway URL is only discoverable through
+  // Core's authenticated broker). If a key IS set, it's enforced as a shared secret
+  // for production deployments that want an extra auth layer.
   const configured = process.env.NODE_AI_KEY || process.env.NODE_SKILL_KEY || process.env.NODE_REGISTER_KEY || ''
-  if (!configured) {
-    return NextResponse.json({ error: 'AI gateway disabled (no NODE_AI_KEY)' }, { status: 403 })
-  }
-  const presented = body.key || req.headers.get('x-node-key') || ''
-  if (presented !== configured) {
-    return NextResponse.json({ error: 'invalid or missing node key' }, { status: 403 })
+  if (configured) {
+    const presented = body.key || req.headers.get('x-node-key') || ''
+    if (presented !== configured) {
+      return NextResponse.json({ error: 'invalid or missing node key' }, { status: 403 })
+    }
   }
 
   const s = getSettings()

@@ -7,7 +7,7 @@ import { Input, Textarea } from '@/components/ui/input'
 import { Send, Sparkles, Radio, Hash, Clock, FileText, Wand2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface Msg { role: 'user' | 'assistant'; content: string; provider?: string; brain?: 'local' | 'remote' }
+interface Msg { role: 'user' | 'assistant'; content: string; provider?: string; model?: string; brain?: 'local' | 'remote' }
 
 type Brain = 'local' | 'remote'
 
@@ -22,7 +22,7 @@ const MODES = [
 type Mode = typeof MODES[number]['key']
 
 export default function LeoPage() {
-  const [status, setStatus] = useState<any>(null)
+  const [status, setStatus] = useState<{ online: boolean; responseMs?: number; lockedOn?: boolean } | null>(null)
   const [mode, setMode] = useState<Mode>('chat')
   const [brain, setBrain] = useState<Brain>('local')
   const [input, setInput] = useState('')
@@ -33,7 +33,12 @@ export default function LeoPage() {
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/angels/status').then(r => r.json()).then(setStatus).catch(() => {})
+    Promise.all([
+      fetch('/api/angels/status').then(r => r.json()),
+      fetch('/api/system').then(r => r.json()),
+    ]).then(([angelsStatus, sys]) => {
+      setStatus({ ...angelsStatus, lockedOn: sys?.binding?.lockedOn ?? false })
+    }).catch(() => {})
   }, [])
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
@@ -59,9 +64,12 @@ export default function LeoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }).then(r => r.json())
-      setMessages(m => [...m, { role: 'assistant', content: res.response || res.error || '(empty)', provider: res.provider, brain: res.brain }])
+      setMessages(m => [...m, { role: 'assistant', content: res.response || res.error || '(empty)', provider: res.provider, model: res.model, brain: res.brain }])
     } catch {
-      setMessages(m => [...m, { role: 'assistant', content: '⚠ Unable to reach LEO. Working from local cache.' }])
+      const failMsg = brain === 'local'
+        ? "⚠ Merlin's on-box brain didn't respond — is Ollama running on this node? Working from local cache."
+        : '⚠ Couldn\'t reach LEO on Core. Check the endeavor lock-on, or switch to Merlin (on-box) to keep working offline.'
+      setMessages(m => [...m, { role: 'assistant', content: failMsg }])
     }
     setLoading(false)
   }
@@ -77,26 +85,35 @@ export default function LeoPage() {
           <h1 className="text-2xl font-mono font-semibold">{brain === 'local' ? 'Talk to Merlin' : 'Talk to Leo'}</h1>
         </div>
         <div className="flex items-center gap-2">
-          {/* Brain selector — explicit Local Merlin vs Remote Leo (Core). */}
-          <div className="flex rounded-md border border-border/60 overflow-hidden text-[10px] font-mono uppercase tracking-wider">
+          {/* Brain selector — WHO you're talking to. Merlin = this node's on-box
+              brain (local Ollama, works offline). LEO = the enterprise brain on Core
+              (needs a lock-on). Kept always-clickable: tapping LEO while unbound
+              explains how to enable it rather than sitting there dead. */}
+          <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-mono uppercase tracking-wider">
             <button
               onClick={() => setBrain('local')}
-              className={cn('px-2.5 py-1.5 transition', brain === 'local' ? 'bg-lcars-green/15 text-lcars-green' : 'text-muted-foreground hover:text-foreground')}
+              title="Merlin — this node's on-box brain (local Ollama, works offline)"
+              className={cn('px-2.5 py-1.5 transition', brain === 'local' ? 'bg-lcars-green/25 text-lcars-green font-semibold' : 'text-muted-foreground hover:text-foreground')}
             >
-              Local Merlin
+              Merlin · on-box
             </button>
             <button
-              onClick={() => setBrain('remote')}
-              disabled={!status?.online}
-              title={status?.online ? 'Route to Leo on Core' : 'Core bridge offline'}
-              className={cn('px-2.5 py-1.5 transition border-l border-border/60', brain === 'remote' ? 'bg-lcars-amber/15 text-lcars-amber' : 'text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed')}
+              onClick={() => {
+                if (!status?.lockedOn) {
+                  setMessages(m => [...m, { role: 'assistant', content: '⚑ Enterprise LEO needs a lock-on. Open CONNECT → Federation to lock this node onto an Endeavor — then LEO (on Core) becomes reachable from here. Until then you\'re talking to Merlin\'s on-box brain.' }])
+                  return
+                }
+                setBrain('remote')
+              }}
+              title={status?.lockedOn ? 'LEO — the enterprise brain on Core (Claude + full tools + endeavor context)' : 'Lock onto an Endeavor first (Connect → Federation)'}
+              className={cn('px-2.5 py-1.5 transition border-l border-border', brain === 'remote' ? 'bg-lcars-amber/25 text-lcars-amber font-semibold' : 'text-muted-foreground hover:text-foreground', !status?.lockedOn && 'opacity-70')}
             >
-              Remote Leo
+              LEO · enterprise{status?.lockedOn ? '' : ' 🔒'}
             </button>
           </div>
           <Badge variant={brain === 'local' ? 'online' : status?.online ? 'online' : 'warning'}>
             <Radio className="size-2.5" />
-            {brain === 'local' ? 'On-box' : status?.online ? `Bridge ${status.responseMs}ms` : 'Offline'}
+            {brain === 'local' ? 'On-box' : status?.online ? `Bridge ${status.responseMs}ms` : status?.lockedOn ? 'Bridge unreachable' : 'Not bound'}
           </Badge>
         </div>
       </div>
@@ -156,9 +173,11 @@ export default function LeoPage() {
               <div className="size-14 rounded-full bg-lcars-amber/10 flex items-center justify-center mb-3">
                 <Sparkles className="size-6 text-lcars-amber" />
               </div>
-              <div className="text-sm font-mono uppercase tracking-wider text-foreground">LEO Standing By</div>
+              <div className="text-sm font-mono uppercase tracking-wider text-foreground">{brain === 'local' ? 'Merlin Standing By · on-box' : 'LEO Standing By · enterprise'}</div>
               <div className="text-xs text-muted-foreground mt-2 max-w-md">
-                SRT cleanup · Chapters · Hashtags · Description optimization · Incident analysis
+                {brain === 'local'
+                  ? "This node's own brain (local Ollama) — works offline. SRT cleanup · Chapters · Hashtags · Optimize · Incident analysis."
+                  : 'LEO on Core — full tools + endeavor context. Talk to the enterprise, not just this box.'}
               </div>
             </div>
           )}
@@ -173,8 +192,8 @@ export default function LeoPage() {
                 {m.content}
               </div>
               {m.role === 'assistant' && (m.provider || m.brain) && (
-                <div className="mt-1 px-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/70">
-                  {m.brain === 'remote' ? 'Leo · Core' : 'Merlin · on-box'}{m.provider ? ` · ${m.provider}` : ''}
+                <div className="mt-1 px-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+                  {m.brain === 'remote' ? 'LEO · Core' : 'Merlin · on-box'}{m.provider ? ` · ${m.provider}` : ''}{m.model ? ` · ${m.model}` : ''}
                 </div>
               )}
             </div>
@@ -201,11 +220,11 @@ export default function LeoPage() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())}
               placeholder={
-                mode === 'chat' ? 'Ask LEO anything...' :
+                mode === 'chat' ? (brain === 'local' ? 'Ask Merlin (on-box)…' : 'Ask LEO on Core…') :
                 mode === 'hashtags' ? 'Video title...' :
                 'Click send to process attached content'
               }
-              className="flex-1 text-white placeholder:text-white/45"
+              className="flex-1"
             />
             <Button onClick={send} disabled={loading} size="icon" variant="lcars">
               <Send className="size-4" />

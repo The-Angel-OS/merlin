@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
               steps: r.steps,
               toolsUsed: r.toolsUsed,
               provider: r.provider,
+              model: r.model,
               brain: 'local',
             })
           }

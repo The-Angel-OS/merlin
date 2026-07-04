@@ -62,12 +62,12 @@ html[data-theme='dark'] {
   --card: #1a1a24;
   --card-foreground: #ededed;
   --muted: #222230;
-  --muted-foreground: #9a9aa6;
+  --muted-foreground: #b0b0bd;
   --accent: #222230;
   --accent-foreground: #ededed;
   --destructive: #d94444;
-  --border: #252532;
-  --input: #252532;
+  --border: #34343f;
+  --input: #34343f;
   --ring: #3fa58c;
 }
 
@@ -104,12 +104,12 @@ html[data-theme='dark'] {
     --card: oklch(19.5% 0.008 260deg);
     --card-foreground: oklch(93% 0 0deg);
     --muted: oklch(24% 0.008 260deg);
-    --muted-foreground: oklch(66% 0.008 260deg);
+    --muted-foreground: oklch(73% 0.008 260deg);
     --accent: oklch(24% 0.008 260deg);
     --accent-foreground: oklch(93% 0 0deg);
     --destructive: oklch(63% 0.2 25deg);
-    --border: oklch(25% 0.008 260deg);
-    --input: oklch(25% 0.008 260deg);
+    --border: oklch(31% 0.008 260deg);
+    --input: oklch(31% 0.008 260deg);
     --ring: oklch(55% 0.06 170deg);
   }
 }

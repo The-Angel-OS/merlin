@@ -102,6 +102,8 @@ export default function ConnectionPill() {
         <div
           className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border shadow-xl"
           role="menu"
+          aria-label="Endeavor menu"  
+          aria-labelledby="endeavor-menu-label"
           style={{
             // Solid bg instead of bg-background/95 — the /95 compiles to
             // color-mix() which fails silently on older webviews (LG webOS,

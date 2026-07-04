@@ -15,7 +15,7 @@ import type { NeutralMsg } from './leoProviders'
 
 const SYSTEM = `You are LEO, the local AI for this Merlin node — an Angel OS media server that runs on the user's own box. You can use local tools to inspect and change configuration, transcribe URLs, and list media on this machine. Prefer DOING the work with a tool over telling the user to do it by hand (e.g. if asked to set a key, call set_config). Report what you actually did, concisely. Secrets are never shown in full.`
 
-export type AgentResult = { response: string; steps: number; toolsUsed: string[]; provider: string }
+export type AgentResult = { response: string; steps: number; toolsUsed: string[]; provider: string; model?: string }
 
 export async function runAgent(conversationId: string, userText: string): Promise<AgentResult> {
   const s = getSettings()
@@ -64,7 +64,7 @@ export async function runAgent(conversationId: string, userText: string): Promis
     conversationId,
   })
 
-  return { response: r.response, steps: r.steps, toolsUsed: r.toolsUsed, provider: r.provider }
+  return { response: r.response, steps: r.steps, toolsUsed: r.toolsUsed, provider: r.provider, model: r.model }
 }
 
 function stripAt(m: { at: string } & NeutralMsg): NeutralMsg {

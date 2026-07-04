@@ -93,3 +93,28 @@ export async function pullModel(name: string): Promise<{ ok: boolean; output: st
   const { code, stdout, stderr } = await sh('ollama', ['pull', name], 1_800_000)
   return { ok: code === 0, output: (stdout || stderr).slice(-2000) }
 }
+
+/**
+ * autoProvisionOllama — diligent detection + start, NO forced install.
+ *
+ * 1. Detect existing Ollama installation (binary on PATH, running server).
+ * 2. If binary is installed but the daemon isn't running, start ollama serve.
+ * 3. Does NOT auto-install or auto-pull models — the user may have installed
+ *    Ollama separately (winget, scoop, manual) and may prefer Ollama Cloud
+ *    models (nemotron-3-super:cloud) over local inference on consumer hardware.
+ *    Returns the final status so callers can decide what to do.
+ *
+ * Idempotent: safe to call on every boot / register.
+ */
+export async function autoProvisionOllama(): Promise<OllamaStatus> {
+  const status = await detectOllama()
+  // Binary found but daemon not running — start it.
+  if (status.installed && !status.running) {
+    const started = await startOllama()
+    if (started.ok) {
+      // Re-detect to get updated version + model list.
+      return detectOllama()
+    }
+  }
+  return status
+}

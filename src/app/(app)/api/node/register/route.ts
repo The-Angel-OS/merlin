@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { registerNode, startNodeBusLoop } from '@/lib/node-bus'
 import { getSettings } from '@/lib/store'
+import { autoProvisionOllama } from '@/lib/ollama'
 
 /**
  * GET /api/node/register — current bus binding for this node (is it locked on?).
@@ -38,6 +39,9 @@ export async function POST(req: Request) {
   if (!endeavor) return NextResponse.json({ error: 'endeavor is required' }, { status: 400 })
 
   try {
+    // Ensure local Ollama is detected and running before registering the node's
+    // compute capabilities. Idempotent — safe to call on every register.
+    void autoProvisionOllama().catch(() => {})
     startNodeBusLoop() // ensure the heartbeat/poll loop is running once a node locks on
     const r = await registerNode({ endeavor, angelsUrl: body.angelsUrl, key: body.key })
     if (!r.ok) return NextResponse.json({ error: `core ${r.status}`, detail: r.core }, { status: r.status === 400 ? 400 : 502 })
