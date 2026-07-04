@@ -20,6 +20,7 @@
   "dependencies": {
     "@angel-os/brain": "file:../angel-brain",
     "@ducanh2912/next-pwa": "^10.2.9",
+    "@libsql/client": "0.14.0",
     "@payloadcms/db-sqlite": "3.77.0",
     "@payloadcms/next": "3.77.0",
     "@payloadcms/richtext-lexical": "3.77.0",
@@ -36,6 +37,7 @@
     "googleapis": "^171.4.0",
     "graphql": "^16.14.2",
     "idb": "^8.0.3",
+    "libsql": "^0.4.7",
     "livekit-client": "^2.18.3",
     "livekit-server-sdk": "^2.15.1",
     "lucide-react": "^0.460.0",
@@ -73,7 +75,9 @@
       "better-sqlite3",
       "sharp",
       "esbuild",
-      "@tailwindcss/oxide"
+      "@tailwindcss/oxide",
+      "libsql",
+      "@libsql/client"
     ]
   }
 }
