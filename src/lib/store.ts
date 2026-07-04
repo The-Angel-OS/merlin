@@ -54,26 +54,45 @@ export interface LogEntry {
   metadata?: Record<string, unknown>
 }
 
-/** Append a log row. Async; fire-and-forget callers may ignore the promise. */
+/**
+ * Append a log row. Async; fire-and-forget callers may ignore the promise.
+ *
+ * NEVER REJECTS. Most call sites invoke this without `await`/`.catch` (perception
+ * hot paths, engine catch blocks). If the SQLite write fails — the exact moment we
+ * most need the record — an unhandled rejection would lose the message entirely, so
+ * we swallow the write failure to console instead. A logging failure must never
+ * crash the process or become an unhandled promise rejection.
+ */
 export async function appendLog(entry: Omit<LogEntry, 'id' | 'timestamp'>): Promise<LogEntry> {
-  const payload = await db()
-  const doc = await payload.create({
-    collection: 'activity-log',
-    data: {
-      type: entry.type,
-      source: entry.source,
-      message: entry.message,
-      metadata: entry.metadata,
-    },
-    overrideAccess: true,
-  })
-  return {
-    id: String(doc.id),
-    timestamp: (doc.createdAt as string) || new Date().toISOString(),
+  const fallback: LogEntry = {
+    id: '',
+    timestamp: new Date().toISOString(),
     type: entry.type,
     source: entry.source,
     message: entry.message,
     metadata: entry.metadata,
+  }
+  try {
+    const payload = await db()
+    const doc = await payload.create({
+      collection: 'activity-log',
+      data: {
+        type: entry.type,
+        source: entry.source,
+        message: entry.message,
+        metadata: entry.metadata,
+      },
+      overrideAccess: true,
+    })
+    return {
+      ...fallback,
+      id: String(doc.id),
+      timestamp: (doc.createdAt as string) || fallback.timestamp,
+    }
+  } catch (e) {
+    // Last-resort sink — the DB row couldn't be written.
+    console.error(`[appendLog] failed to persist ${entry.type} from ${entry.source}: ${e instanceof Error ? e.message : String(e)} :: ${entry.message}`)
+    return fallback
   }
 }
 

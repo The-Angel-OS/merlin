@@ -1,4 +1,5 @@
 import { getSettings, appendLog } from './store'
+import { logNodeError } from './nodeError'
 import { buildBoloSystemPrompt, buildBoloUserPrompt, validateAnalysis, logBoloAudit } from './guardian-conduct'
 import type { BoloAnalysis } from './guardian-conduct'
 
@@ -56,11 +57,9 @@ export async function analyzeFrame(frameBase64: string, label: string): Promise<
 
     if (!response.ok) {
       const detail = (await response.text().catch(() => '')).slice(0, 300)
-      appendLog({
-        type: 'error',
-        source: 'bolo',
-        message: `BOLO ${model} ${response.status} (${elapsed}ms): ${detail}`,
-      })
+      // Escalate — a blind vision pipeline (Ollama down/erroring) is a guardian-
+      // relevant failure Core should see, not just a local log line.
+      logNodeError('bolo/vision', `BOLO ${model} ${response.status} (${elapsed}ms): ${detail}`)
       return { ok: false, model, elapsedMs: elapsed, error: `Ollama ${response.status}: ${detail}` }
     }
 
@@ -92,7 +91,7 @@ export async function analyzeFrame(frameBase64: string, label: string): Promise<
   } catch (e) {
     const elapsed = Date.now() - started
     const msg = e instanceof Error ? e.message : String(e)
-    appendLog({ type: 'error', source: 'bolo', message: `${model} failed (${elapsed}ms): ${msg}` })
+    logNodeError('bolo/vision', `${model} failed (${elapsed}ms): ${msg}`, e instanceof Error ? e.stack : undefined)
     return { ok: false, model, elapsedMs: elapsed, error: msg }
   }
 }

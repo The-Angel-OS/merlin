@@ -1,6 +1,7 @@
 import sharp from 'sharp'
 import { captureFrame } from './camera'
 import { getSettings, appendLog } from './store'
+import { logNodeError } from './nodeError'
 import { registerProducer, registerEye, unregisterEye, startEye, stopEye, activeWitnesses, emitSignal } from './witness-engine'
 import { ingestSignal } from './react-engine'
 import { analyzeFrame } from './bolo-engine'
@@ -9,6 +10,14 @@ import type { SnapResult } from './camera'
 
 const DIM = 64
 const BLANK_MAX = 12
+
+// Hardware safety: cap concurrent vision (BOLO) inferences across the WHOLE node.
+// llava/moondream on CPU can peg a core for 30–60s; without this, a busy scene
+// (motion detected every tick) would stack inferences until an enthusiast box OOMs
+// or thermal-throttles. Default 1 = at most one vision call at a time; a GPU node
+// can raise it via BOLO_MAX_CONCURRENT.
+const BOLO_MAX_CONCURRENT = Math.max(1, Number(process.env.BOLO_MAX_CONCURRENT) || 1)
+let boloInFlight = 0
 
 interface SourcePrev {
   buffer: Buffer
@@ -73,29 +82,35 @@ async function cameraEyeProducer(eye: EyeState): Promise<Signal | null> {
 
   const base64 = snap.buffer.toString('base64')
 
-  // Fire-and-forget BOLO vision analysis — this runs an LLM on the frame
-  // in the background. It never blocks motion detection.
-  void analyzeFrame(base64, label)
-    .then((result) => {
-      if (!result.ok || !result.analysis) return
-      emitSignal({
-        id: `${eye.config.id}:bolo:${Date.now()}`,
-        eyeId: eye.config.id,
-        eyeType: 'camera',
-        type: 'bolo_analysis',
-        confidence: result.analysis.confidence,
-        summary: `BOLO: ${result.analysis.scene}`,
-        timestamp: new Date().toISOString(),
-        mediaUrl: snap.filename,
-        location: eye.config.location,
-        metadata: {
-          bolo: result.analysis,
-          model: result.model,
-          elapsedMs: result.elapsedMs,
-        },
+  // Fire-and-forget BOLO vision analysis in the background — never blocks motion
+  // detection. Concurrency-capped (see BOLO_MAX_CONCURRENT): at capacity we SKIP this
+  // frame's analysis rather than pile on. Motion is still recorded — vision is
+  // best-effort, not guaranteed-per-frame — so a busy scene can't cook the hardware.
+  if (boloInFlight < BOLO_MAX_CONCURRENT) {
+    boloInFlight++
+    void analyzeFrame(base64, label)
+      .then((result) => {
+        if (!result.ok || !result.analysis) return
+        return emitSignal({
+          id: `${eye.config.id}:bolo:${Date.now()}`,
+          eyeId: eye.config.id,
+          eyeType: 'camera',
+          type: 'bolo_analysis',
+          confidence: result.analysis.confidence,
+          summary: `BOLO: ${result.analysis.scene}`,
+          timestamp: new Date().toISOString(),
+          mediaUrl: snap.filename,
+          location: eye.config.location,
+          metadata: {
+            bolo: result.analysis,
+            model: result.model,
+            elapsedMs: result.elapsedMs,
+          },
+        })
       })
-    })
-    .catch(() => {})
+      .catch((e) => logNodeError('sentinel/bolo', `BOLO analysis/emit failed for ${label}: ${e instanceof Error ? e.message : String(e)}`))
+      .finally(() => { boloInFlight-- })
+  }
 
   return {
     id: `${eye.config.id}:${Date.now()}`,
@@ -107,12 +122,15 @@ async function cameraEyeProducer(eye: EyeState): Promise<Signal | null> {
     timestamp: new Date().toISOString(),
     mediaUrl: snap.filename,
     location: eye.config.location,
+    // Data minimization (Constitution Art. V): NO raw base64 in the signal — it
+    // gets persisted to the local log and pushed to every WS subscriber. Raw frames
+    // go to the endeavor ONLY via the explicit Media bridge (submitSnapshot), never
+    // smuggled through a logged/graduated signal.
     metadata: {
       diff,
       device: snap.device,
       label,
       analysisPending: true,
-      dataBase64: base64,
       filename: snap.filename,
       mimetype: snap.mimetype,
     },

@@ -1,4 +1,5 @@
 import { appendLog, updateSettings, createIncident } from './store'
+import { logNodeError } from './nodeError'
 import { submitSnapshot } from './node-bus'
 import { captureFrame } from './camera'
 import { activeWitnesses } from './witness-engine'
@@ -65,12 +66,15 @@ export function ingestSignal(signal: Signal): void {
     if (Date.now() - last < reflex.cooldownMs) continue
     engine().throttle.set(reflex.name, Date.now())
 
-    // Fire async — never block the signal pipeline
+    // Fire async — never block the signal pipeline. Escalate a failed reflex to
+    // Core (a broken autonomic response is exactly the kind of silent failure we
+    // must surface), deduped per-reflex by logNodeError's source key.
     void reflex.action(signal).catch((err) => {
-      appendLog({
-        type: 'error', source: 'react',
-        message: `reflex "${reflex.name}" action failed: ${err instanceof Error ? err.message : String(err)}`,
-      })
+      logNodeError(
+        `react/reflex/${reflex.name}`,
+        `reflex "${reflex.name}" action failed: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      )
     })
   }
 }
@@ -134,20 +138,23 @@ function registerBuiltinReflexes(): void {
     },
   })
 
-  // Reflex: when an eye has repeated errors, auto-restart it
+  // Reflex: when a single eye stops on repeated errors, try to restart JUST that eye
+  // (not the whole engine — a bounded, cooldown-gated retry, not a sledgehammer that
+  // bounces every other eye). The witness tick emits `eye_error` on terminal shutdown.
   registerReflex({
     name: 'eye-error-restart',
-    description: 'Restart an eye after 3 consecutive errors',
+    description: 'Restart a single failed eye after it stops on repeated errors (cooldown-bounded)',
     priority: 30,
     cooldownMs: 120_000,
     autoStart: true,
     match: (s) => s.type === 'eye_error',
     action: async (s) => {
-      const { stopEngine, startEngine, engineStatus } = await import('./witness-engine')
-      stopEngine()
-      await new Promise((r) => setTimeout(r, 1_000))
-      startEngine()
-      appendLog({ type: 'system', source: 'react', message: 'witness engine restarted after eye error' })
+      const { startEye } = await import('./witness-engine')
+      const ok = startEye(s.eyeId)
+      appendLog({
+        type: 'system', source: 'react',
+        message: `auto-restart eye "${s.eyeId}" after repeated errors: ${ok ? 'restarted' : 'failed (no such eye / no producer)'}`,
+      })
     },
   })
 

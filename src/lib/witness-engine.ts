@@ -1,6 +1,9 @@
 import { appendLog } from './store'
+import { logNodeError } from './nodeError'
 import { logSignal } from './messageLog'
 import type { EyeConfig, EyeState, Signal, Subscriber, WitnessCatalogEntry } from './witness-types'
+
+export type ProduceFn = (eye: EyeState) => Promise<Signal | null>
 
 declare global {
   var __witnessEngine:
@@ -8,6 +11,11 @@ declare global {
         eyes: Map<string, EyeState>
         timers: Map<string, NodeJS.Timeout>
         subscribers: Map<string, Subscriber>
+        // Producers + the dedup ledger live on the SAME globalThis object as the
+        // rest of the engine state so a Next.js hot-reload can't re-init them empty
+        // (which silently orphaned every running eye — no producer, no dedup prune).
+        producers: Map<string, ProduceFn>
+        recentSignals: Map<string, number>
         running: boolean
       }
     | undefined
@@ -17,7 +25,14 @@ const DEDUP_WINDOW_MS = 2_000
 
 function engine() {
   if (!globalThis.__witnessEngine) {
-    globalThis.__witnessEngine = { eyes: new Map(), timers: new Map(), subscribers: new Map(), running: false }
+    globalThis.__witnessEngine = {
+      eyes: new Map(),
+      timers: new Map(),
+      subscribers: new Map(),
+      producers: new Map(),
+      recentSignals: new Map(),
+      running: false,
+    }
   }
   return globalThis.__witnessEngine
 }
@@ -74,12 +89,8 @@ function eyeTypeToCapability(t: string): string {
 
 // ── Producer Contract ────────────────────────────────────────────────────────
 
-export type ProduceFn = (eye: EyeState) => Promise<Signal | null>
-
-const producers = new Map<string, ProduceFn>()
-
 export function registerProducer(type: string, fn: ProduceFn): void {
-  producers.set(type, fn)
+  engine().producers.set(type, fn)
 }
 
 // ── Start / Stop Eyes ────────────────────────────────────────────────────────
@@ -90,9 +101,9 @@ export function startEye(id: string): boolean {
   if (!state) return false
   if (state.running) return true
 
-  const fn = producers.get(state.config.type)
+  const fn = e.producers.get(state.config.type)
   if (!fn) {
-    appendLog({ type: 'error', source: 'witness', message: `no producer registered for eye type "${state.config.type}" (eye: ${id})` })
+    logNodeError(`witness/eye/${id}`, `no producer registered for eye type "${state.config.type}" (eye: ${id})`)
     return false
   }
 
@@ -111,16 +122,40 @@ export function startEye(id: string): boolean {
       }
       current.lastTickAt = Date.now()
       current.consecutiveErrors = 0
+      current.error = undefined
     } catch (err) {
       current.consecutiveErrors++
       const msg = err instanceof Error ? err.message : String(err)
-      appendLog({ type: 'error', source: 'witness', message: `eye "${id}" tick failed (${current.consecutiveErrors}): ${msg}` })
+      current.error = msg
+      // Escalate to Core (deduped per-eye) so a blind eye is visible, not just logged locally.
+      logNodeError(`witness/eye/${id}`, `eye "${id}" tick failed (${current.consecutiveErrors}): ${msg}`, err instanceof Error ? err.stack : undefined)
       if (current.consecutiveErrors >= 5) {
-        current.running = false
-        appendLog({ type: 'error', source: 'witness', message: `eye "${id}" stopped after ${current.consecutiveErrors} consecutive errors` })
+        // Actually STOP the eye — clears the interval so it can't leave a zombie
+        // timer firing forever after being declared stopped. Distinct source so the
+        // terminal shutdown always escalates (isn't swallowed by the tick-fail dedup).
+        const n = current.consecutiveErrors
+        stopEye(id)
+        logNodeError(`witness/eye/${id}/stopped`, `eye "${id}" stopped after ${n} consecutive errors: ${msg}`)
+        // Emit an eye_error signal so the React Engine's (cooldown-bounded) restart
+        // reflex can attempt recovery of this single eye.
+        void emitSignal({
+          id: `eye-error-${id}-${current.lastTickAt ?? ''}`,
+          eyeId: id,
+          eyeType: current.config.type,
+          type: 'eye_error',
+          confidence: 1,
+          summary: `eye "${id}" stopped after ${n} consecutive errors`,
+          timestamp: new Date().toISOString(),
+          metadata: { consecutiveErrors: n, error: msg },
+        }).catch(() => {})
       }
     }
   }
+
+  // Clear any prior interval for this id before arming a new one (defends against a
+  // re-entrant startEye leaving an orphaned setInterval behind).
+  const prior = e.timers.get(id)
+  if (prior) { clearInterval(prior); e.timers.delete(id) }
 
   void tick()
   const timer = setInterval(() => void tick(), state.config.intervalMs)
@@ -150,18 +185,23 @@ export function stopAllEyes(): void {
 
 // ── Signal Pipeline ──────────────────────────────────────────────────────────
 
-const recentSignals = new Map<string, number>()
-
 export async function emitSignal(signal: Signal): Promise<void> {
   return publishSignal(signal)
 }
 
 async function publishSignal(signal: Signal): Promise<void> {
-  // Dedup: skip if we already published an identical signal within the window
+  // Dedup: skip if we already published an identical signal within the window.
+  const recentSignals = engine().recentSignals
+  const now = Date.now()
   const key = `${signal.eyeId}:${signal.type}:${signal.summary}`
   const last = recentSignals.get(key)
-  if (last && Date.now() - last < DEDUP_WINDOW_MS) return
-  recentSignals.set(key, Date.now())
+  if (last && now - last < DEDUP_WINDOW_MS) return
+  recentSignals.set(key, now)
+  // Prune expired keys — summaries embed varying deltas/scene text, so keys are
+  // effectively unique per signal and the map would otherwise grow without bound.
+  if (recentSignals.size > 500) {
+    for (const [k, t] of recentSignals) if (now - t > DEDUP_WINDOW_MS) recentSignals.delete(k)
+  }
 
   // 1. Persist locally via messageLog (triage + graduated submit)
   void logSignal({

@@ -1,4 +1,4 @@
-import { getSettings, appendLog } from './store'
+import { appendLog } from './store'
 
 // ── The Constitution (abridged for the Guardian Angel) ──────────────────────
 
@@ -116,15 +116,17 @@ export function validateAnalysis(raw: string): BoloAnalysis | null {
   try {
     const parsed = JSON.parse(raw)
 
-    // Required fields
+    // Required fields — coerce AND clamp, because a vision model can return
+    // out-of-range garbage (confidence: 5 → "500%"; negative/float counts; object
+    // arrays with non-string members that render as "[object Object]" in incidents).
     if (typeof parsed.scene !== 'string') return null
-    if (!Array.isArray(parsed.objects)) parsed.objects = []
-    if (typeof parsed.people !== 'number') parsed.people = 0
-    if (typeof parsed.vehicles !== 'number') parsed.vehicles = 0
-    if (!Array.isArray(parsed.boloFlags)) parsed.boloFlags = []
+    parsed.objects = Array.isArray(parsed.objects) ? parsed.objects.filter((o: unknown) => typeof o === 'string') : []
+    parsed.boloFlags = Array.isArray(parsed.boloFlags) ? parsed.boloFlags.filter((f: unknown) => typeof f === 'string') : []
+    parsed.people = typeof parsed.people === 'number' && Number.isFinite(parsed.people) ? Math.max(0, Math.floor(parsed.people)) : 0
+    parsed.vehicles = typeof parsed.vehicles === 'number' && Number.isFinite(parsed.vehicles) ? Math.max(0, Math.floor(parsed.vehicles)) : 0
     if (!['none', 'low', 'medium', 'high', 'critical'].includes(parsed.boloPriority)) parsed.boloPriority = 'none'
     if (typeof parsed.boloRationale !== 'string') parsed.boloRationale = ''
-    if (typeof parsed.confidence !== 'number') parsed.confidence = 0
+    parsed.confidence = typeof parsed.confidence === 'number' && Number.isFinite(parsed.confidence) ? Math.min(1, Math.max(0, parsed.confidence)) : 0
     if (!['privacy', 'safety', 'escalate'].includes(parsed.yinYangBalance)) parsed.yinYangBalance = 'privacy'
 
     return parsed as BoloAnalysis
