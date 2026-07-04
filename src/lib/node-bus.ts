@@ -15,6 +15,35 @@ const HEARTBEAT_MS = 120_000 // re-register every 2 min (Core's online window is
 const POLL_MS = 8_000 // poll the command channel every 8s
 
 /**
+ * The key the node presents to Core's node-ops endpoints. It IS Core's CRON_SECRET —
+ * NODE_REGISTER_KEY is an optional alias for a separately-provisioned key. Falling
+ * back to CRON_SECRET fixes the silent 403/401 loop when only CRON_SECRET is set (the
+ * common case): register 403 → no fresh node token → poll 401 forever.
+ */
+function nodeRegisterKey(explicit?: string): string {
+  return explicit || process.env.NODE_REGISTER_KEY || process.env.CRON_SECRET || ''
+}
+
+/**
+ * Throttle noisy, PERSISTENT auth failures (poll 401 every 8s, heartbeat 403 every
+ * 2m) so a misconfig can't flood the Officer Log. Logs at most once per window per
+ * key, carrying a suppressed-count so the volume is still visible.
+ */
+const AUTH_ERR_WINDOW_MS = 60_000
+const _authErrGate: Record<string, { at: number; suppressed: number }> = {}
+function authErrShouldLog(key: string): { log: boolean; suppressed: number } {
+  const now = Date.now()
+  const e = _authErrGate[key]
+  if (!e || now - e.at >= AUTH_ERR_WINDOW_MS) {
+    const suppressed = e?.suppressed ?? 0
+    _authErrGate[key] = { at: now, suppressed: 0 }
+    return { log: true, suppressed }
+  }
+  e.suppressed++
+  return { log: false, suppressed: e.suppressed }
+}
+
+/**
  * Sentinel that prefixes a structured skill payload embedded in a result message's
  * text (because Core's chat-send drops metadata). Core's node-files handler parses
  * the line `<SENTINEL>:<requestId>:<json>` back into structured data. Keep in sync
@@ -46,7 +75,7 @@ export async function registerNode(args: RegisterArgs = {}): Promise<{ ok: boole
   const s = getSettings()
   const endeavor = (args.endeavor || s.boundEndeavor || '').trim()
   const angelsUrl = (args.angelsUrl || s.boundAngelsUrl || process.env.NEXT_PUBLIC_ANGELS_URL || '').replace(/\/$/, '')
-  const key = args.key || process.env.NODE_REGISTER_KEY || ''
+  const key = nodeRegisterKey(args.key)
   if (!endeavor) return { ok: false, status: 400, core: { error: 'endeavor is required' } }
   if (!angelsUrl) return { ok: false, status: 400, core: { error: 'angelsUrl (or NEXT_PUBLIC_ANGELS_URL) required' } }
 
@@ -105,7 +134,7 @@ export async function reportUsage(usage: UsageReport): Promise<void> {
     const s = getSettings()
     const endeavor = (s.boundEndeavor || '').trim()
     const angelsUrl = (s.boundAngelsUrl || process.env.NEXT_PUBLIC_ANGELS_URL || '').replace(/\/$/, '')
-    const key = process.env.NODE_REGISTER_KEY || ''
+    const key = nodeRegisterKey()
     if (!endeavor || !angelsUrl || !key) return // unbound → not metered (by design)
 
     const catalog = await buildNodeCatalog().catch(() => null)
@@ -241,7 +270,10 @@ export async function pollOnce(): Promise<{ handled: number }> {
   try {
     const res = await coreFetch(s.boundAngelsUrl, `/api/ai-bus/poll?${qs.toString()}`, s.nodeToken)
     if (!res.ok) {
-      if (res.status === 401) appendLog({ type: 'error', source: 'node-bus', message: 'poll 401 — node token expired/invalid; will refresh on next heartbeat' })
+      if (res.status === 401) {
+        const g = authErrShouldLog('poll401')
+        if (g.log) appendLog({ type: 'error', source: 'node-bus', message: `poll 401 — node token expired/invalid; will refresh on next heartbeat${g.suppressed ? ` (+${g.suppressed} suppressed)` : ''}` })
+      }
       return { handled: 0 }
     }
     const data = (await res.json()) as { messages?: BusMessage[] }
@@ -411,7 +443,11 @@ export function startNodeBusLoop(): void {
       if (r.ok && !bound) {
         appendLog({ type: 'angels', source: 'node-bus', message: `auto-locked onto "${PRECONFIG_ENDEAVOR}" (env preconfig)` })
       } else if (!r.ok) {
-        appendLog({ type: 'error', source: 'node-bus', message: `heartbeat register ${r.status}: ${r.core.error || ''}` })
+        const g = authErrShouldLog(`register${r.status}`)
+        if (g.log) {
+          const hint = r.status === 403 ? ' — set NODE_REGISTER_KEY or CRON_SECRET on this node to match Core' : ''
+          appendLog({ type: 'error', source: 'node-bus', message: `heartbeat register ${r.status}: ${r.core.error || ''}${hint}${g.suppressed ? ` (+${g.suppressed} suppressed)` : ''}` })
+        }
       }
     } catch (e) {
       appendLog({ type: 'error', source: 'node-bus', message: `heartbeat failed: ${e instanceof Error ? e.message : e}` })
