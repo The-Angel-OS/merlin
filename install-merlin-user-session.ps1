@@ -66,9 +66,12 @@ Write-Host "Registering scheduled task '$TaskName' (at-logon, interactive sessio
 
 # Hidden launcher: a -WindowStyle Hidden PowerShell runs node in its own (hidden)
 # console and WAITS on it, so the task stays Running (auto-restart applies) with no
-# visible console window.
-$inner = "& `"$node`" `"$nextBin`" start -H 0.0.0.0 -p $Port"
-$psArg = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command $inner"
+# visible console window. The command is BASE64-ENCODED (UTF-16LE) via -EncodedCommand
+# so Task Scheduler can't mangle the quoting of the space-containing "Program Files"
+# path -- the plain -Command form did exactly that and exited code 1.
+$inner = "& '$node' '$nextBin' start -H 0.0.0.0 -p $Port"
+$enc   = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
+$psArg = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand $enc"
 
 $action  = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $psArg -WorkingDirectory $workDir
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $User
