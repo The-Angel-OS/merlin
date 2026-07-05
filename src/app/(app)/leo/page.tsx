@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
-import { Send, Sparkles, Radio, Hash, Clock, FileText, Wand2 } from 'lucide-react'
+import { Send, Sparkles, Radio, Hash, Clock, FileText, Wand2, Copy, Check, Volume2, VolumeX } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Msg { role: 'user' | 'assistant'; content: string; provider?: string; model?: string; brain?: 'local' | 'remote'; at?: string }
@@ -287,6 +287,16 @@ export default function LeoPage() {
       {mode !== 'bus' && (
       <Card className="flex-1 p-0 gap-0 overflow-hidden flex flex-col">
         <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-4 space-y-3">
+          {hasMore && !loadingMore && messages.length > 0 && (
+            <div className="flex justify-center py-1">
+              <button
+                onClick={() => void loadOlder()}
+                className="rounded-full border border-border/60 px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground transition hover:border-border hover:text-foreground"
+              >
+                Load earlier messages
+              </button>
+            </div>
+          )}
           {loadingMore && (
             <div className="py-1 text-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               Loading earlier…
@@ -306,21 +316,7 @@ export default function LeoPage() {
             </div>
           )}
           {messages.map((m, i) => (
-            <div key={i} className={cn('flex flex-col', m.role === 'user' ? 'items-end' : 'items-start')}>
-              <div className={cn(
-                'max-w-[80%] px-4 py-2.5 rounded-xl text-sm whitespace-pre-wrap',
-                m.role === 'user'
-                  ? 'bg-lcars-amber/15 border border-lcars-amber/30 text-foreground'
-                  : 'bg-card/60 border border-border/60 text-foreground/90',
-              )}>
-                {m.content}
-              </div>
-              {m.role === 'assistant' && (m.provider || m.brain) && (
-                <div className="mt-1 px-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-                  {m.brain === 'remote' ? 'LEO · Core' : 'Merlin · on-box'}{m.provider ? ` · ${m.provider}` : ''}{m.model ? ` · ${m.model}` : ''}
-                </div>
-              )}
-            </div>
+            <MessageBubble key={i} m={m} />
           ))}
           {loading && (
             <div className="flex justify-start">
@@ -357,6 +353,84 @@ export default function LeoPage() {
         </div>
       </Card>
       )}
+    </div>
+  )
+}
+
+// ─── Message bubble ──────────────────────────────────────────────────────────
+
+/** How many chars before a message collapses behind "Show more". */
+const COLLAPSE_CHARS = 700
+
+/**
+ * One chat bubble with the standard AI-chat affordances: long messages collapse
+ * by default (Show more/less), and on hover each carries Copy + Speak (device TTS)
+ * actions. The plumbing (@@ANGELS_RESULT@@ sentinel, request markers) is already
+ * stripped upstream in the history endpoint, so content here is clean prose.
+ */
+function MessageBubble({ m }: { m: Msg }) {
+  const [expanded, setExpanded] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
+  const speakingRef = useRef(false)
+  const isUser = m.role === 'user'
+  const long = m.content.length > COLLAPSE_CHARS
+  const shown = long && !expanded ? m.content.slice(0, COLLAPSE_CHARS).trimEnd() + '…' : m.content
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(m.content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1200)
+    } catch { /* clipboard unavailable */ }
+  }
+  const speak = () => {
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined
+    if (!synth) return
+    if (speakingRef.current) { synth.cancel(); return }
+    synth.cancel()
+    const u = new SpeechSynthesisUtterance(m.content)
+    u.onend = () => { speakingRef.current = false; setSpeaking(false) }
+    u.onerror = () => { speakingRef.current = false; setSpeaking(false) }
+    speakingRef.current = true
+    setSpeaking(true)
+    synth.speak(u)
+  }
+  useEffect(() => () => { if (speakingRef.current) window.speechSynthesis?.cancel() }, [])
+
+  return (
+    <div className={cn('group flex flex-col', isUser ? 'items-end' : 'items-start')}>
+      <div className={cn(
+        'max-w-[80%] px-4 py-2.5 rounded-xl text-sm whitespace-pre-wrap break-words',
+        isUser
+          ? 'bg-lcars-amber/15 border border-lcars-amber/30 text-foreground'
+          : 'bg-card/60 border border-border/60 text-foreground/90',
+      )}>
+        {shown}
+        {long && (
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="mt-1.5 block text-[10px] font-mono uppercase tracking-wider text-lcars-amber hover:underline"
+          >
+            {expanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+      </div>
+      <div className={cn('mt-1 flex items-center gap-2 px-1', isUser && 'flex-row-reverse')}>
+        {!isUser && (m.provider || m.brain) && (
+          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+            {m.brain === 'remote' ? 'LEO · Core' : 'Merlin · on-box'}{m.provider ? ` · ${m.provider}` : ''}{m.model ? ` · ${m.model}` : ''}
+          </span>
+        )}
+        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <button onClick={copy} title="Copy" aria-label="Copy message" className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+            {copied ? <Check className="size-3 text-lcars-green" /> : <Copy className="size-3" />}
+          </button>
+          <button onClick={speak} title={speaking ? 'Stop' : 'Speak'} aria-label={speaking ? 'Stop speaking' : 'Speak message'} className={cn('rounded p-1 transition-colors hover:bg-muted', speaking ? 'text-lcars-green' : 'text-muted-foreground hover:text-foreground')}>
+            {speaking ? <VolumeX className="size-3" /> : <Volume2 className="size-3" />}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

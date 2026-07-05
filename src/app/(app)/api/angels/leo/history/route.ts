@@ -22,15 +22,31 @@ export const dynamic = 'force-dynamic'
 
 type DisplayMsg = { role: 'user' | 'assistant'; content: string; at: string; brain?: 'local' }
 
+/**
+ * Strip machine plumbing from a turn's text so the chat shows prose, not payloads:
+ *  - the `@@ANGELS_RESULT@@:<id>:<json>` sentinel a node embeds for structured
+ *    skill results (the file browser greps it out separately — it must never render)
+ *  - the trailing `_(request <id>)_` correlation marker
+ */
+function cleanText(text: string): string {
+  let s = text
+  const sentinel = s.indexOf('@@ANGELS_RESULT@@')
+  if (sentinel >= 0) s = s.slice(0, sentinel)
+  s = s.replace(/\n*_\(request [^)]*\)_\s*$/i, '')
+  return s.trim()
+}
+
 /** Map stored provider-neutral turns → display bubbles (drop tool turns + empty text). */
 function toDisplay(messages: StoredMessage[]): DisplayMsg[] {
   const out: DisplayMsg[] = []
   for (const m of messages) {
     if (m.role === 'user') {
-      if (m.text?.trim()) out.push({ role: 'user', content: m.text, at: m.at })
+      const t = cleanText(m.text || '')
+      if (t) out.push({ role: 'user', content: t, at: m.at })
     } else if (m.role === 'assistant') {
       // Local store = this node's on-box brain, so tag historical replies accordingly.
-      if (m.text?.trim()) out.push({ role: 'assistant', content: m.text, at: m.at, brain: 'local' })
+      const t = cleanText(m.text || '')
+      if (t) out.push({ role: 'assistant', content: t, at: m.at, brain: 'local' })
     }
     // role === 'tool' → tool_result plumbing; never shown.
   }
