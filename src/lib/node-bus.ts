@@ -256,10 +256,29 @@ async function runCommand(tool: string, cmdArgs: Record<string, unknown>): Promi
 }
 
 /**
+ * Re-entrancy guard for the poll loop. A slow runCommand (e.g. runAgent → Ollama
+ * chewing on a big prompt) can outlast the 8s poll interval; without this, the next
+ * setInterval tick starts a SECOND poll that re-processes the SAME node-command before
+ * the first has posted its result + advanced the cursor. That's the "Local brain
+ * error: timeout" ×N spam. One poll at a time; skip the tick if one is in flight.
+ */
+let pollInFlight = false
+
+export async function pollOnce(): Promise<{ handled: number }> {
+  if (pollInFlight) return { handled: 0 }
+  pollInFlight = true
+  try {
+    return await pollOnceInner()
+  } finally {
+    pollInFlight = false
+  }
+}
+
+/**
  * One poll tick: pull pending commands on this node's channel, run them, post results.
  * Advances the cursor so each command is handled once.
  */
-export async function pollOnce(): Promise<{ handled: number }> {
+async function pollOnceInner(): Promise<{ handled: number }> {
   const s = getSettings()
   if (!s.boundEndeavor || !s.nodeToken || !s.busChannel || !s.busSpaceId) return { handled: 0 }
 
