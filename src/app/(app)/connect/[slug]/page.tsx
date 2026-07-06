@@ -127,15 +127,31 @@ export default function EndeavorDetailPage() {
       {/* ─── Manifest / probe status ─────────────────────────────────── */}
       <section className="mb-6 rounded-lg border p-4" style={{ borderColor: '#ffffff15' }}>
         {probeError ? (
-          <div className="flex items-start gap-2 text-sm" style={{ color: '#f5a623' }}>
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <div>
-              <div className="font-medium">Could not reach {domain}</div>
-              <div className="mt-1 text-xs" style={{ color: '#7788aa' }}>
-                {probeError}. You may still be able to sign in below if you know the credentials.
+          // An HTTP status in the error means the domain ANSWERED — it's reachable,
+          // it just doesn't publish a federation manifest. Don't cry "could not
+          // reach" (which contradicts the green header pill + an active lock-on);
+          // only a true network failure is unreachable.
+          /HTTP\s+\d{3}/.test(probeError) ? (
+            <div className="flex items-start gap-2 text-sm" style={{ color: '#99ccff' }}>
+              <Radio className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <div className="font-medium" style={{ color: '#cdd9ee' }}>Reachable · manifest not published</div>
+                <div className="mt-1 text-xs" style={{ color: '#7788aa' }}>
+                  {domain} is up but doesn&apos;t serve a federation manifest, so it can&apos;t be auto-verified. Sign in below to connect.
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-start gap-2 text-sm" style={{ color: '#f5a623' }}>
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <div className="font-medium">Could not reach {domain}</div>
+                <div className="mt-1 text-xs" style={{ color: '#7788aa' }}>
+                  {probeError}. You may still be able to sign in below if you know the credentials.
+                </div>
+              </div>
+            </div>
+          )
         ) : manifest ? (
           <div>
             <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: '#22cc88' }}>
