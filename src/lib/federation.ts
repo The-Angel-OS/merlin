@@ -255,9 +255,24 @@ export async function probeEndeavor(
     domain = found.domain
   }
 
-  const url = `https://${domain}${FEDERATION_DEFAULTS.wellKnownPath}`
+  // In the browser, go through Merlin's same-origin proxy — a direct https fetch
+  // from the http LAN page is CORS/mixed-content blocked ("Failed to fetch") and
+  // produced a false "Could not reach" banner. Server/tests fetch direct.
+  const url =
+    typeof window !== 'undefined'
+      ? `/api/probe?domain=${encodeURIComponent(domain)}`
+      : `https://${domain}${FEDERATION_DEFAULTS.wellKnownPath}`
   const res = await fetch(url, { headers: { Accept: 'application/json' } })
-  if (!res.ok) throw new Error(`${domain} returned HTTP ${res.status}`)
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`
+    try {
+      const body = (await res.json()) as { error?: string }
+      if (body?.error) detail = body.error
+    } catch {
+      /* keep status */
+    }
+    throw new Error(`${domain}: ${detail}`)
+  }
   return (await res.json()) as EndeavorManifest
 }
 
