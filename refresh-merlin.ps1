@@ -29,7 +29,32 @@ if (-not $NoPull) {
   Write-Host "-> skipping git pull (-NoPull)" -ForegroundColor Gray
 }
 
-# 2) Build (keeps the OLD build live if this fails)
+# 1b) Refresh the shared brain (file:../angel-brain). pnpm installs it as a
+#     hard-linked COPY, not a live link — so a stale copy in node_modules causes
+#     type drift ("Property 'model' does not exist on type 'BrainResult'"). Pull
+#     + rebuild the brain, then `pnpm install` below re-syncs Merlin's copy.
+$brainDir = Join-Path (Split-Path $PSScriptRoot -Parent) 'angel-brain'
+$brainRefreshed = $false
+if (Test-Path $brainDir) {
+  Write-Host "-> refresh @angel-os/brain ($brainDir)" -ForegroundColor Gray
+  Push-Location $brainDir
+  if (-not $NoPull) { git fetch origin; git pull --ff-only origin main }
+  pnpm install
+  pnpm build
+  $brainOk = ($LASTEXITCODE -eq 0)
+  Pop-Location
+  if (-not $brainOk) { Write-Host "angel-brain build failed. Aborting." -ForegroundColor Red; exit 1 }
+  $brainRefreshed = $true
+} else {
+  Write-Host "-> angel-brain not found at $brainDir (skipping brain refresh)" -ForegroundColor DarkGray
+}
+
+# 2) Build (keeps the OLD build live if this fails). Re-sync the file: brain dep
+#    first when the brain was rebuilt, so Merlin picks up the fresh dist.
+if ($brainRefreshed) {
+  Write-Host "-> pnpm install (re-sync brain dep)" -ForegroundColor Gray
+  pnpm install
+}
 Write-Host "-> pnpm build" -ForegroundColor Gray
 pnpm build
 if ($LASTEXITCODE -ne 0) {
