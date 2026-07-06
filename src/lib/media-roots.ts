@@ -1,5 +1,29 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { execSync } from 'node:child_process'
+
+/**
+ * Best-effort Windows drive-type map — 'F' → 2 removable | 3 local | 4 network |
+ * 5 cd/dvd. Lets discovery flag flash/removable media distinctly. Fail-soft: an
+ * empty map just means every non-system drive is offered generically.
+ */
+function getDriveTypes(): Record<string, number> {
+  if (process.platform !== 'win32') return {}
+  try {
+    const out = execSync(
+      'powershell -NoProfile -NonInteractive -Command "Get-CimInstance Win32_LogicalDisk | ForEach-Object { \\"$($_.DeviceID) $($_.DriveType)\\" }"',
+      { timeout: 5000, windowsHide: true, encoding: 'utf-8' },
+    )
+    const map: Record<string, number> = {}
+    for (const line of out.split(/\r?\n/)) {
+      const m = line.match(/^([A-Za-z]):\s+(\d)/)
+      if (m) map[m[1].toUpperCase()] = Number(m[2])
+    }
+    return map
+  } catch {
+    return {}
+  }
+}
 
 const CONFIG_PATH = path.resolve('data/media-roots.json')
 
@@ -148,6 +172,39 @@ export async function scanForMediaDirs(): Promise<ScannedDir[]> {
     } catch { /* skip */ }
   }
 
+  // Offer each NON-SYSTEM drive's root as a share candidate, so a flash/external
+  // drive (F:, etc.) is discoverable even when its media lives in folders we
+  // don't recognize — or at the drive root. C: is skipped (never offer the whole
+  // system disk; its user folders are surfaced separately below). Removable
+  // drives are flagged so flash media reads as flash media.
+  const driveTypes = getDriveTypes()
+  const driveRoots: ScannedDir[] = []
+  for (const drive of driveInfo) {
+    if (drive.letter === 'C') continue
+    const root = `${drive.letter}:\\`
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(root, { withFileTypes: true })
+        .filter(d => !d.name.startsWith('$') && !d.name.startsWith('.'))
+    } catch {
+      continue // unreadable (empty card slot, permission) — skip
+    }
+    if (entries.length === 0) continue
+    const type = driveTypes[drive.letter]
+    const removable = type === 2
+    const cd = type === 5
+    driveRoots.push({
+      path: root,
+      label: removable ? `Flash Drive (${drive.letter}:)` : cd ? `Disc (${drive.letter}:)` : `Whole Drive (${drive.letter}:)`,
+      icon: removable ? '💾' : cd ? '💿' : '🗄️',
+      drive: drive.letter,
+      driveLabel: drive.label,
+      hasMedia: true,
+      subDirCount: entries.filter(e => e.isDirectory()).length,
+      alreadyConfigured: configuredPaths.has(root.toLowerCase()),
+    })
+  }
+
   const MEDIA_DIRS_TO_CHECK = [
     'DCIM', 'Movies', 'Videos', 'Music', 'Pictures', 'Photos',
   ]
@@ -240,5 +297,6 @@ export async function scanForMediaDirs(): Promise<ScannedDir[]> {
     }
   }
 
-  return results
+  // Whole-drive roots first so a flash/external drive is visible without scrolling.
+  return [...driveRoots, ...results]
 }
