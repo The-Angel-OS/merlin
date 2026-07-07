@@ -62,11 +62,36 @@ export async function GET(request: Request) {
   }
 }
 
-async function respondDirectory(dir: string, minSize: number) {
-  const files = await readdir(dir)
+// Cap total entries processed so a folder with tens of thousands of files (e.g.
+// an accumulating DCIM/sentinel capture dir) can't melt the request.
+const MAX_ENTRIES = 4000
+// Bound how many stat/thumbnail probes run at once. Unbounded Promise.all over
+// thousands of files fired thousands of concurrent fs ops on external/slow drives
+// → the response never returned → the media library spun forever. This keeps it
+// snappy and bounded regardless of folder size.
+const FS_CONCURRENCY = 24
 
-  const items = await Promise.all(
-    files.map(async (file) => {
+/** map() with a fixed worker pool — bounded concurrency, order preserved. */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const worker = async () => {
+    while (next < items.length) {
+      const idx = next++
+      results[idx] = await fn(items[idx])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
+async function respondDirectory(dir: string, minSize: number) {
+  const allFiles = await readdir(dir)
+  const truncated = allFiles.length > MAX_ENTRIES
+  const files = truncated ? allFiles.slice(0, MAX_ENTRIES) : allFiles
+
+  const items = await mapLimit(files, FS_CONCURRENCY,
+    async (file) => {
       // Skip hidden + thumbnail/temp artifacts (.temp-* from ffmpeg, .DS_Store, dotfiles).
       if (file.startsWith('.')) return null
       const filePath = join(dir, file)
@@ -114,7 +139,6 @@ async function respondDirectory(dir: string, minSize: number) {
 
       return null
     })
-  )
 
   const validItems = items.filter((item): item is MovieItem => item !== null)
   const sortedItems = validItems.sort((a, b) => {
@@ -123,5 +147,9 @@ async function respondDirectory(dir: string, minSize: number) {
     return b.name.localeCompare(a.name) // newest-first for daily/dashcam folders
   })
 
-  return NextResponse.json({ items: sortedItems, currentPath: dir })
+  return NextResponse.json({
+    items: sortedItems,
+    currentPath: dir,
+    ...(truncated ? { truncated: true, shownOf: `${MAX_ENTRIES} of ${allFiles.length}` } : {}),
+  })
 }
