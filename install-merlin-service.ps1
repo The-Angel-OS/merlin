@@ -1,4 +1,4 @@
-# 260622 Claude — elevated installer for the Merlin NSSM service.
+# 260622 Claude - elevated installer for the Merlin NSSM service.
 # Installs/refreshes a Windows service "Merlin" that runs the compiled Next prod
 # server (next start) from C:\Dev\merlin, auto-starts on boot, restarts on crash.
 $ErrorActionPreference = 'Continue'

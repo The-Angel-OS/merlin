@@ -1,4 +1,4 @@
-# 260622 Claude — elevated rebuild: stop service → prod build → start service.
+# 260622 Claude - elevated rebuild: stop service -> prod build -> start service.
 $ErrorActionPreference = 'Continue'
 $nssm = "C:\Users\kenne\AppData\Local\Microsoft\WinGet\Packages\NSSM.NSSM_Microsoft.Winget.Source_8wekyb3d8bbwe\nssm-2.24-101-g897c7ad\win64\nssm.exe"
 New-Item -ItemType Directory -Force -Path 'C:\Dev\merlin\logs' | Out-Null

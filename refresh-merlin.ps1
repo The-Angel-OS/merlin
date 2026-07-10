@@ -1,8 +1,8 @@
 <#
-  refresh-merlin.ps1 — one-shot: pull latest, rebuild, restart Merlin.
+  refresh-merlin.ps1 - one-shot: pull latest, rebuild, restart Merlin.
 
   Merlin runs as the interactive-session scheduled task 'Merlin', which OWNS
-  port 3000. So we rebuild and restart THAT task — never `pnpm start`, which
+  port 3000. So we rebuild and restart THAT task - never `pnpm start`, which
   collides with the task and fails with EADDRINUSE (address already in use).
 
   Usage (from anywhere):
@@ -16,7 +16,7 @@ param([switch]$NoPull)
 Set-Location $PSScriptRoot
 Write-Host "== Merlin refresh ==" -ForegroundColor Cyan
 
-# 1) Pull latest (fast-forward only — refuses rather than making a messy merge)
+# 1) Pull latest (fast-forward only - refuses rather than making a messy merge)
 if (-not $NoPull) {
   Write-Host "-> git pull --ff-only origin main" -ForegroundColor Gray
   git fetch origin
@@ -30,7 +30,7 @@ if (-not $NoPull) {
 }
 
 # 1b) Refresh the shared brain (file:../angel-brain). pnpm installs it as a
-#     hard-linked COPY, not a live link — so a stale copy in node_modules causes
+#     hard-linked COPY, not a live link - so a stale copy in node_modules causes
 #     type drift ("Property 'model' does not exist on type 'BrainResult'"). Pull
 #     + rebuild the brain, then `pnpm install` below re-syncs Merlin's copy.
 $brainDir = Join-Path (Split-Path $PSScriptRoot -Parent) 'angel-brain'
@@ -58,7 +58,7 @@ if ($brainRefreshed) {
 Write-Host "-> pnpm build" -ForegroundColor Gray
 pnpm build
 if ($LASTEXITCODE -ne 0) {
-  Write-Host "Build failed. NOT restarting Merlin — the previous build stays live." -ForegroundColor Red
+  Write-Host "Build failed. NOT restarting Merlin - the previous build stays live." -ForegroundColor Red
   exit 1
 }
 
@@ -85,5 +85,5 @@ if ($up) {
 } else {
   Write-Host "[..] Not listening yet - give it a few more seconds, then load 127.0.0.1:3000." -ForegroundColor Yellow
   Write-Host "     If it never comes up, a stray manual 'next start' may still hold :3000 -" -ForegroundColor Yellow
-  Write-Host "     close that console (or: Get-NetTCPConnection -LocalPort 3000 | % { Stop-Process -Id $_.OwningProcess -Force })." -ForegroundColor Yellow
+  Write-Host '     close that console, or free port 3000: Get-NetTCPConnection -LocalPort 3000, then Stop-Process the owning PID.' -ForegroundColor Yellow
 }
