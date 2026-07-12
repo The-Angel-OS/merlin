@@ -1,0 +1,47 @@
+name: Deploy Merlin (self-hosted)
+
+# Auto-deploy on push to main — the "Vercel for a self-hosted Next app" pattern:
+# a GitHub Actions SELF-HOSTED RUNNER on the IONOS box runs the existing
+# refresh-merlin.ps1 (git pull --ff-only → refresh @angel-os/brain → pnpm install →
+# build → restart the 'Merlin' scheduled task). The runner is a SEPARATE process from
+# the Merlin service, so it can cleanly stop/build/start it (a webhook-into-the-app
+# would have to restart itself mid-request). Manual re-deploy via workflow_dispatch.
+#
+# One-time setup on the box (see docs/AUTO_DEPLOY_MERLIN.md):
+#   Repo → Settings → Actions → Runners → New self-hosted runner (Windows),
+#   labels: self-hosted, windows, merlin. Run it as a service under a user with
+#   rights to run refresh-merlin.ps1 and restart the 'Merlin' task.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Never run two deploys at once; let an in-flight deploy finish rather than cancel it.
+concurrency:
+  group: deploy-merlin
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, windows, merlin]
+    timeout-minutes: 25
+    steps:
+      - name: Refresh Merlin (pull + build + restart)
+        shell: powershell
+        run: |
+          powershell -ExecutionPolicy Bypass -File C:\Dev\merlin\refresh-merlin.ps1
+          if ($LASTEXITCODE -ne 0) { throw "refresh-merlin.ps1 failed (exit $LASTEXITCODE)" }
+
+      - name: Health check
+        shell: powershell
+        run: |
+          # Give the service a moment, then confirm it answers on :3000.
+          Start-Sleep -Seconds 8
+          try {
+            $r = Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000/api/health' -TimeoutSec 20
+            Write-Host "health: $($r.StatusCode)"
+            if ($r.StatusCode -ne 200) { throw "health returned $($r.StatusCode)" }
+          } catch {
+            throw "Merlin health check failed after deploy: $($_.Exception.Message)"
+          }
