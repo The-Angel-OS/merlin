@@ -447,11 +447,13 @@ export function startNodeBusLoop(): void {
   // Start the Events WebSocket server for real-time signal push to local subscribers.
   void import('@/lib/events-server').then(({ startEventsServer }) => startEventsServer()).catch(() => {})
 
-  // Auto-provision a DYNAMIC public tunnel (replaces the fixed named tunnel) when
-  // tunnel sharing is on — self-heals the URL each boot and re-registers it with Core.
-  void import('@/lib/leoTools').then(({ ensureAutoTunnel }) => ensureAutoTunnel()).catch(() => {})
-
   const heartbeat = async () => {
+    // Auto-provision a DYNAMIC public tunnel (replaces the fixed named tunnel) when
+    // tunnel sharing is on — self-heals the URL each boot and re-registers it with
+    // Core. Guarded internally (one spawn per process), so calling per tick is free
+    // AND makes the "retry on next tick" promise real — a boot-time-only call left
+    // a failed spawn dead until the next restart.
+    void import('@/lib/leoTools').then(({ ensureAutoTunnel }) => ensureAutoTunnel()).catch(() => {})
     const bound = Boolean(getSettings().boundEndeavor)
     // If not yet bound but env preconfigures an endeavor, auto-lock-on this tick.
     const args =

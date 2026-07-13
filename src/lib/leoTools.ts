@@ -12,6 +12,7 @@ import { spawn } from 'child_process'
 import { readdirSync, statSync, existsSync } from 'fs'
 import { join } from 'path'
 import { getSettings, updateSettings, type Settings } from './store'
+import { cloudflaredPath } from './tunnel'
 import type { Tool } from './leoBrain'
 
 export type { Tool }
@@ -136,7 +137,11 @@ function startTunnel(
   return new Promise((resolve) => {
     let child
     try {
-      child = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${port}`], {
+      // Resolve the binary explicitly (Program Files fallback) — a bare
+      // 'cloudflared' depends on the SERVICE PROCESS PATH, which on Windows is
+      // the logon-time snapshot and silently ENOENTs when the install postdates
+      // it (burned 260713: manual spawn worked, the task's didn't).
+      child = spawn(cloudflaredPath(), ['tunnel', '--url', `http://localhost:${port}`], {
         windowsHide: true,
       })
     } catch (err) {
@@ -205,6 +210,12 @@ export async function ensureAutoTunnel(port = 3000): Promise<void> {
   if (result.ok && result.url) {
     updateSettings({ tunnelUrl: result.url })
     try {
+      const { appendLog } = await import('./store')
+      appendLog({ type: 'system', source: 'tunnel', message: `auto-tunnel up → ${result.url}` })
+    } catch {
+      /* log is best-effort */
+    }
+    try {
       const { registerNode } = await import('./node-bus')
       await registerNode() // push the live URL to Core now, not in 2 minutes
     } catch {
@@ -212,6 +223,13 @@ export async function ensureAutoTunnel(port = 3000): Promise<void> {
     }
   } else {
     autoTunnelStarted = false // allow a retry on the next boot tick
+    try {
+      // Surface the failure — a silent fail-soft here cost a debugging session.
+      const { appendLog } = await import('./store')
+      appendLog({ type: 'system', source: 'tunnel', message: `auto-tunnel failed: ${result.error || 'unknown'}` })
+    } catch {
+      /* log is best-effort */
+    }
   }
 }
 

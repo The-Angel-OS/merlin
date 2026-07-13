@@ -30,7 +30,7 @@ function state() {
 }
 
 /** Locate the cloudflared binary (PATH, or the default Windows install location). */
-function cloudflaredPath(): string {
+export function cloudflaredPath(): string {
   const candidates = [
     process.env.CLOUDFLARED_PATH,
     'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe',
