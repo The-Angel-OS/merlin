@@ -66,6 +66,19 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "-> restart scheduled task 'Merlin'" -ForegroundColor Gray
 try { Stop-ScheduledTask -TaskName Merlin -ErrorAction Stop } catch { Write-Host "   (task was not running)" -ForegroundColor DarkGray }
 Start-Sleep -Seconds 2
+
+# 3b) Kill any ORPHANED Merlin node process. Stop-ScheduledTask kills the
+#     hidden powershell wrapper but can leave its node child alive holding
+#     :3000 - the new instance then dies EADDRINUSE while the OLD build keeps
+#     serving, and the health check below green-lights stale code. (Burned
+#     260713: three "successful" deploys, BUILD_ID six days old.)
+Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.CommandLine -match 'merlin' -and $_.CommandLine -match 'next' } |
+  ForEach-Object {
+    Write-Host ("   killing orphaned merlin node PID {0}" -f $_.ProcessId) -ForegroundColor Yellow
+    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+  }
+Start-Sleep -Seconds 2
 try {
   Start-ScheduledTask -TaskName Merlin -ErrorAction Stop
 } catch {
