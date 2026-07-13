@@ -176,6 +176,45 @@ function startTunnel(
   })
 }
 
+let autoTunnelStarted = false
+
+/**
+ * Auto-provision a DYNAMIC tunnel on boot — the replacement for a fixed named
+ * tunnel (e.g. MERLIN_TUNNEL_URL / merlin.payloadnuke.com). Called once when the
+ * node bus loop starts (lock-on). Behaviour:
+ *   - Respects the operator: only runs when tunnel SHARING is on (loadShares) — a
+ *     node that didn't opt into a public tunnel never gets one.
+ *   - Defers to a preconfigured persistent tunnel (MERLIN_TUNNEL_URL) if present.
+ *   - A prior run's settings.tunnelUrl is a DEAD ephemeral URL, so we always spawn
+ *     a fresh quick tunnel and overwrite it, then RE-REGISTER immediately so Core
+ *     learns the live URL without waiting for the next heartbeat. Core resolves
+ *     every media/file link against this current URL at request time.
+ * Idempotent per process; fail-soft (missing cloudflared just logs + retries next tick).
+ */
+export async function ensureAutoTunnel(port = 3000): Promise<void> {
+  if (autoTunnelStarted) return
+  if (process.env.MERLIN_TUNNEL_URL) return // a persistent named tunnel is configured — respect it
+  try {
+    const { loadShares } = await import('./shares')
+    if (!loadShares().shares.tunnel) return // tunnel sharing off → no public tunnel
+  } catch {
+    return
+  }
+  autoTunnelStarted = true
+  const result = await startTunnel(port)
+  if (result.ok && result.url) {
+    updateSettings({ tunnelUrl: result.url })
+    try {
+      const { registerNode } = await import('./node-bus')
+      await registerNode() // push the live URL to Core now, not in 2 minutes
+    } catch {
+      /* next heartbeat will carry it */
+    }
+  } else {
+    autoTunnelStarted = false // allow a retry on the next boot tick
+  }
+}
+
 function runPython(
   script: string,
   args: string[],
