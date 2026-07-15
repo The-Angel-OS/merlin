@@ -78,6 +78,16 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyCon
     Write-Host ("   killing orphaned merlin node PID {0}" -f $_.ProcessId) -ForegroundColor Yellow
     Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
   }
+
+# 3b-ii) Belt & suspenders: kill WHOEVER owns :3000, by port (not by command-line
+#     match, which missed the orphan and caused the 37h-stale-node blind spot). This
+#     is the reliable way to free the port before Start-ScheduledTask.
+Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue |
+  Select-Object -ExpandProperty OwningProcess -Unique |
+  ForEach-Object {
+    Write-Host ("   freeing :3000 - killing PID {0}" -f $_) -ForegroundColor Yellow
+    Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue
+  }
 Start-Sleep -Seconds 2
 try {
   Start-ScheduledTask -TaskName Merlin -ErrorAction Stop
@@ -93,10 +103,34 @@ foreach ($i in 1..20) {
   Start-Sleep -Seconds 1
   if (Test-NetConnection -ComputerName 127.0.0.1 -Port 3000 -InformationLevel Quiet -WarningAction SilentlyContinue) { $up = $true; break }
 }
-if ($up) {
-  Write-Host "[OK] Merlin is up on http://127.0.0.1:3000" -ForegroundColor Green
-} else {
+if (-not $up) {
   Write-Host "[..] Not listening yet - give it a few more seconds, then load 127.0.0.1:3000." -ForegroundColor Yellow
   Write-Host "     If it never comes up, a stray manual 'next start' may still hold :3000 -" -ForegroundColor Yellow
   Write-Host '     close that console, or free port 3000: Get-NetTCPConnection -LocalPort 3000, then Stop-Process the owning PID.' -ForegroundColor Yellow
+  exit 1
+}
+
+# 4b) STALE-NODE GUARD. Port-up is not enough - an orphaned OLD node holding :3000
+#     answers 200 and green-lights stale code (the "37h uptime" blind spot). Assert
+#     the node serving :3000 was built from the SHA we just built (next.config bakes
+#     `git rev-parse --short HEAD` into /api/health.buildSha). Mismatch = stale node
+#     still holding the port; fail LOUD so the deploy doesn't lie.
+$expectedSha = (git rev-parse --short HEAD).Trim()
+$servedSha = $null
+foreach ($i in 1..10) {
+  try {
+    $h = Invoke-RestMethod -Uri 'http://127.0.0.1:3000/api/health' -TimeoutSec 5 -ErrorAction Stop
+    $servedSha = $h.buildSha
+    if ($servedSha -eq $expectedSha) { break }
+  } catch { }
+  Start-Sleep -Seconds 2
+}
+if ($servedSha -eq $expectedSha) {
+  Write-Host "[OK] Merlin is up on :3000 serving build $servedSha (matches HEAD)." -ForegroundColor Green
+} else {
+  Write-Host "[STALE] :3000 is serving '$servedSha' but HEAD is '$expectedSha' - a stale node is holding the port." -ForegroundColor Red
+  Write-Host "        The new build did NOT take. Free :3000 and re-run:" -ForegroundColor Red
+  Write-Host '        Get-NetTCPConnection -LocalPort 3000 | Select -Expand OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }' -ForegroundColor Yellow
+  Write-Host '        then Start-ScheduledTask -TaskName Merlin' -ForegroundColor Yellow
+  exit 1
 }
