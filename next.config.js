@@ -1,6 +1,24 @@
+const { execSync } = require('child_process')
+
+// Build stamp — bakes the git SHA + build time into the bundle at `next build`
+// time. Surfaced in the sidebar footer + /api/health so you can tell AT A GLANCE
+// whether a deploy actually took: if the running node is stale (an orphaned old
+// process kept the port), the SHA won't match HEAD.
+let BUILD_SHA = process.env.BUILD_SHA || ''
+try {
+  if (!BUILD_SHA) BUILD_SHA = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+} catch {
+  BUILD_SHA = 'unknown'
+}
+const BUILD_TIME = new Date().toISOString()
+
 /** @type {import('next').NextConfig} */
 const baseConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: BUILD_SHA,
+    NEXT_PUBLIC_BUILD_TIME: BUILD_TIME,
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'yt3.ggpht.com' },

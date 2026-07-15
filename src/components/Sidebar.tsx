@@ -423,12 +423,22 @@ export default function Sidebar({
       {/* Bottom: status + collapse toggle */}
       <div className="shrink-0 border-t border-border/60">
         {!collapsed && (
-          <div className="px-3 py-2 flex items-center gap-2 text-[10px] font-mono">
-            {online ? (
-              <><Wifi className="size-3 text-lcars-green" /><span className="text-lcars-green uppercase tracking-wider">Mothership Live</span></>
-            ) : (
-              <><WifiOff className="size-3 text-lcars-amber" /><span className="text-lcars-amber uppercase tracking-wider">Local Cache</span></>
-            )}
+          <div className="px-3 py-2 flex items-center justify-between gap-2 text-[10px] font-mono">
+            <span className="flex items-center gap-2">
+              {online ? (
+                <><Wifi className="size-3 text-lcars-green" /><span className="text-lcars-green uppercase tracking-wider">Mothership Live</span></>
+              ) : (
+                <><WifiOff className="size-3 text-lcars-amber" /><span className="text-lcars-amber uppercase tracking-wider">Local Cache</span></>
+              )}
+            </span>
+            {/* Build stamp — the SHA this bundle was built from. If it doesn't match
+                HEAD after a deploy, the running node is stale (didn't restart). */}
+            <span
+              className="text-muted-foreground/70 shrink-0"
+              title={`Build ${process.env.NEXT_PUBLIC_BUILD_SHA || 'unknown'}${process.env.NEXT_PUBLIC_BUILD_TIME ? ` · ${process.env.NEXT_PUBLIC_BUILD_TIME}` : ''}`}
+            >
+              {process.env.NEXT_PUBLIC_BUILD_SHA || 'dev'}
+            </span>
           </div>
         )}
         {/* Collapse / expand toggle — desktop only (mobile uses the drawer close) */}
