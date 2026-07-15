@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 
 export interface ViewerItem {
   name: string
@@ -20,6 +20,9 @@ interface MediaViewerProps {
 
 const VIDEO_EXT = /\.(mp4|mkv|avi|mov|wmv|flv|webm|m4v|3gp|ts|mpg|mpeg)$/i
 
+/** Seconds each PHOTO holds before the slideshow advances (videos play to their end). */
+const PHOTO_MS = 4500
+
 export default function MediaViewer({
   items,
   index,
@@ -29,6 +32,9 @@ export default function MediaViewer({
   onClose,
 }: MediaViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  // Slideshow: when playing, PHOTOS auto-advance on a timer and VIDEOS advance when
+  // they finish; at the end it loops back to the start so an album plays forever.
+  const [playing, setPlaying] = useState(false)
 
   const item = items[index]
   const hasPrev = index > 0
@@ -42,7 +48,13 @@ export default function MediaViewer({
     if (index < items.length - 1) onNavigate(index + 1)
   }, [index, items.length, onNavigate])
 
-  // Keyboard: ← prev, → next, Esc/Backspace close.
+  // Advance for the slideshow — loops to the first item at the end (continuous play).
+  const goNextOrLoop = useCallback(() => {
+    if (items.length <= 1) return
+    onNavigate(index < items.length - 1 ? index + 1 : 0)
+  }, [index, items.length, onNavigate])
+
+  // Keyboard: ← prev, → next, Space play/pause slideshow, Esc/Backspace close.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Backspace') {
@@ -54,11 +66,27 @@ export default function MediaViewer({
       } else if (e.key === 'ArrowRight') {
         e.preventDefault()
         goNext()
+      } else if (e.key === ' ') {
+        e.preventDefault()
+        setPlaying((p) => !p)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [goPrev, goNext, onClose])
+
+  const curItem = items[index]
+  const curIsVideo =
+    curItem != null &&
+    (curItem.mediaType === 'video' || (curItem.mediaType == null && VIDEO_EXT.test(curItem.name)))
+
+  // Slideshow photo timer — only for images (videos advance via onEnded). Resets on
+  // every index change, so each photo gets its full hold. Videos: the timer is idle.
+  useEffect(() => {
+    if (!playing || curIsVideo || items.length <= 1) return
+    const t = setTimeout(goNextOrLoop, PHOTO_MS)
+    return () => clearTimeout(t)
+  }, [playing, curIsVideo, index, items.length, goNextOrLoop])
 
   if (!item) return null
 
@@ -96,6 +124,28 @@ export default function MediaViewer({
         </button>
         <div className="h-4 w-px bg-white/20" />
         <h1 className="text-sm font-medium truncate text-gray-300 flex-1">{fileName}</h1>
+        {items.length > 1 && (
+          <button
+            onClick={() => setPlaying((p) => !p)}
+            className={`flex items-center gap-1.5 shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium border transition-all ${
+              playing
+                ? 'bg-violet-600/80 border-violet-400/60 text-white'
+                : 'bg-black/40 border-white/15 text-gray-300 hover:text-white hover:border-violet-400/60'
+            }`}
+            title={playing ? 'Pause slideshow (Space)' : 'Play slideshow (Space)'}
+          >
+            {playing ? (
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            )}
+            <span className="hidden sm:inline">{playing ? 'Playing' : 'Play'}</span>
+          </button>
+        )}
         <span className="text-xs text-gray-500 shrink-0 font-mono">
           {index + 1} / {items.length}
         </span>
@@ -113,7 +163,10 @@ export default function MediaViewer({
             autoPlay
             src={`/api/stream?file=${encodeURIComponent(item.path)}`}
             onEnded={() => {
-              if (autoAdvance && hasNext) goNext()
+              // In slideshow mode, roll on (looping at the end); otherwise keep the
+              // original behavior (advance only if there IS a next item).
+              if (playing) goNextOrLoop()
+              else if (autoAdvance && hasNext) goNext()
             }}
           >
             Your browser does not support the video tag.
