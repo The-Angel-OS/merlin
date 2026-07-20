@@ -16,8 +16,16 @@ import { NextResponse } from 'next/server'
 import type { DirectoryResponse, EndeavorRef, EnterpriseRef } from '@/lib/federation'
 
 const ROOT =
-  process.env.NEXT_PUBLIC_FEDERATION_ROOT_URL || 'https://www.spacesangels.com'
-const ROOT_DOMAIN = 'spacesangels.com'
+  process.env.NEXT_PUBLIC_FEDERATION_ROOT_URL || 'https://www.payloadnuke.com'
+// Derive the registrable root domain from ROOT so it always tracks the configured
+// federation root (payloadnuke.com self-host, or spacesangels.com legacy).
+const ROOT_DOMAIN = (() => {
+  try {
+    return new URL(ROOT).hostname.replace(/^www\./, '')
+  } catch {
+    return 'payloadnuke.com'
+  }
+})()
 const TIMEOUT_MS = 12_000
 
 export async function GET() {

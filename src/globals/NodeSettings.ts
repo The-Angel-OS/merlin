@@ -18,12 +18,12 @@ export const NodeSettings: GlobalConfig = {
         {
           label: 'Federation',
           fields: [
-            { name: 'angelsApiUrl', type: 'text', defaultValue: 'https://platform.spacesangels.com' },
+            { name: 'angelsApiUrl', type: 'text', defaultValue: 'https://www.payloadnuke.com' },
             {
               name: 'seedNodes',
               type: 'text',
               hasMany: true,
-              defaultValue: ['https://platform.spacesangels.com', 'https://federation.kendev.co'],
+              defaultValue: ['https://www.payloadnuke.com', 'https://federation.kendev.co'],
               admin: { description: 'Federation seed nodes. A node can contribute/borrow intelligence against any of these without being bound to an endeavor.' },
             },
             { name: 'angelsApiKey', type: 'text' },

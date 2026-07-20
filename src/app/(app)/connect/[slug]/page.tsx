@@ -33,7 +33,7 @@ export default function EndeavorDetailPage() {
   const [loginError, setLoginError] = useState<string | null>(null)
 
   const fromDirectory = directory?.endeavors.find(e => e.slug === slug)
-  const domain = overrideDomain ?? fromDirectory?.domain ?? `${slug}.spacesangels.com`
+  const domain = overrideDomain ?? fromDirectory?.domain ?? `${slug}.payloadnuke.com`
   const alreadySignedIn = sessions.some(s => s.slug === slug)
 
   // Resolve the hosting Enterprise (Discovery-tab parity): by id, then host-domain.
