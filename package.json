@@ -3,10 +3,10 @@
   "version": "2.0.0",
   "description": "Merlin — Angel OS media server: local media serving + ingest, ffmpeg rollups, a Leo channel, and a federation client",
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 3000",
-    "dev:https": "next dev -H 0.0.0.0 -p 3000 --experimental-https",
+    "dev": "next dev -H 0.0.0.0 -p 3099",
+    "dev:https": "next dev -H 0.0.0.0 -p 3099 --experimental-https",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p 3000",
+    "start": "next start -H 0.0.0.0 -p 3099",
     "lint": "next lint",
     "icons": "node scripts/generate-icons.mjs",
     "payload": "payload",
