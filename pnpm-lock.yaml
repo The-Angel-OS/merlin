@@ -3501,8 +3501,8 @@ packages:
   jose@5.9.6:
     resolution: {integrity: sha512-AMlnetc9+CV9asI19zHmrgS/WYsWUwCn2R7RzlbJWD7F9eWYUTGyBmU9o6PxngtLGOiDGPRu+Uc4fhKzbpteZQ==}
 
-  jose@6.2.2:
-    resolution: {integrity: sha512-d7kPDd34KO/YnzaDOlikGpOurfF0ByC2sEV4cANCtdqLlTfBlw2p14O/5d/zv40gJPbIQxfES3nSx1/oYNyuZQ==}
+  jose@6.2.4:
+    resolution: {integrity: sha512-N8acGzVsQy6M/fjFcxtysNc4Q379TcM5dM/qKkNtsHFji88yANnXTr7BLeP75iPnFwBfQzM/jg2BZ9+HZrHCZA==}
 
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
@@ -8819,7 +8819,7 @@ snapshots:
 
   jose@5.9.6: {}
 
-  jose@6.2.2: {}
+  jose@6.2.4: {}
 
   joycon@3.1.1: {}
 
@@ -9024,7 +9024,7 @@ snapshots:
       '@livekit/mutex': 1.1.1
       '@livekit/protocol': 1.45.3
       events: 3.3.0
-      jose: 6.2.2
+      jose: 6.2.4
       loglevel: 1.9.2
       sdp-transform: 2.15.0
       tslib: 2.8.1
