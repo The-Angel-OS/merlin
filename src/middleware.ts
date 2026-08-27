@@ -63,8 +63,14 @@ async function hasValidSession(req: NextRequest): Promise<boolean> {
   try {
     // Loopback, not req.nextUrl.origin — over the tunnel that origin is the
     // public URL, which would round-trip out through Cloudflare (and in dev hit
-    // prod). ponytail: the appliance is always :3000.
-    const res = await fetch('http://127.0.0.1:3000/api/users/me', {
+    // prod).
+    //
+    // The port is READ, not assumed. This said 3000 while the scheduled task
+    // started Merlin on 3002, so the check could never succeed: every visitor
+    // was bounced to /admin/login, signed in fine, and was bounced again —
+    // an infinite redirect that looked like a broken password. A hardcoded
+    // port in a security gate is a gate that fails shut for the wrong reason.
+    const res = await fetch(`http://127.0.0.1:${process.env.PORT || 3000}/api/users/me`, {
       headers: { cookie: `payload-token=${token}` },
     })
     if (!res.ok) return false
