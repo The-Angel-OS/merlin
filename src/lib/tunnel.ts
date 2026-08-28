@@ -49,13 +49,17 @@ export function cloudflaredPath(): string {
 }
 
 /** If a named-tunnel config exists, return its public hostname (the ingress rule). */
-function detectNamedHostname(): string | null {
+export function detectNamedHostname(): string | null {
   const cfg = path.join(os.homedir(), '.cloudflared', 'config.yml')
   try {
     if (!fs.existsSync(cfg)) return null
     const raw = fs.readFileSync(cfg, 'utf-8')
-    const m = raw.match(/hostname:\s*([^\s#]+)/i)
-    return m ? m[1].trim() : null
+    const all = [...raw.matchAll(/hostname:\s*([^\s#]+)/gi)].map((m) => m[1].trim())
+    if (!all.length) return null
+    // Prefer the platform hostname when the file lists several. A node advertises
+    // ONE address to Core, and a config that also carries legacy brands would
+    // otherwise hand out whichever happened to be typed first.
+    return all.find((h) => h.endsWith('.spacesangels.com')) || all[0]
   } catch {
     return null
   }

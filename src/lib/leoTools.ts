@@ -196,7 +196,7 @@ let autoTunnelStarted = false
  *     every media/file link against this current URL at request time.
  * Idempotent per process; fail-soft (missing cloudflared just logs + retries next tick).
  */
-export async function ensureAutoTunnel(port = 3000): Promise<void> {
+export async function ensureAutoTunnel(port = Number(process.env.PORT) || 3000): Promise<void> {
   if (autoTunnelStarted) return
   if (process.env.MERLIN_TUNNEL_URL) return // a persistent named tunnel is configured — respect it
   try {
@@ -205,6 +205,50 @@ export async function ensureAutoTunnel(port = 3000): Promise<void> {
   } catch {
     return
   }
+
+  // A NAMED tunnel, if this box has one, beats minting a quick one.
+  //
+  // This is what broke Core's file proxy: we spawned `cloudflared tunnel --url
+  // http://localhost:3000` — nothing listens on 3000, Merlin is on 3002 — and
+  // then advertised the resulting *.trycloudflare.com address to Core. Core
+  // dutifully proxied media requests to a tunnel whose origin was empty, and
+  // every file came back 502. Meanwhile merlin.spacesangels.com, a named tunnel
+  // pointed at the right port, was answering 200 the whole time.
+  //
+  // A quick tunnel is also ephemeral: it takes a new random name every restart,
+  // so the URL Core has stored is stale the moment this process bounces. Named
+  // first is both correct and stable; quick stays as the zero-config path for a
+  // member node with no Cloudflare account.
+  try {
+    const { detectNamedHostname } = await import('./tunnel')
+    const named = detectNamedHostname()
+    if (named) {
+      const url = `https://${named}`
+      // Deliberately NOT one-shot. Settings hydrate from the node-settings global
+      // AFTER boot, so a value written during startup gets clobbered by whatever
+      // the DB still holds — which is how a dead trycloudflare URL from a previous
+      // run kept coming back and kept Core proxying media to nothing. Re-asserting
+      // each tick costs one regex over a small file and makes the correction stick.
+      if (getSettings().tunnelUrl === url) return
+      updateSettings({ tunnelUrl: url })
+      try {
+        const { appendLog } = await import('./store')
+        appendLog({ type: 'system', source: 'tunnel', message: `named tunnel → ${url}` })
+      } catch {
+        /* log is best-effort */
+      }
+      try {
+        const { registerNode } = await import('./node-bus')
+        await registerNode() // push the stable URL to Core now, not in 2 minutes
+      } catch {
+        /* next heartbeat will carry it */
+      }
+      return
+    }
+  } catch {
+    /* no named config — fall through to the quick tunnel */
+  }
+
   autoTunnelStarted = true
   const result = await startTunnel(port)
   if (result.ok && result.url) {
