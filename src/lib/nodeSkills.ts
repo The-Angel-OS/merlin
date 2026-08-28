@@ -211,3 +211,125 @@ function localIPv4(): string | null {
   }
   return null
 }
+
+// ─── One-level directory browse ───────────────────────────────────────
+
+/** A folder inside a shared root, addressed the same way files are. */
+export interface BrowseDir {
+  name: string
+  ref: string
+  /** False when the drive behind a root is not mounted right now. */
+  online?: boolean
+}
+
+export interface BrowseResult {
+  ok: boolean
+  error?: string
+  /** Where we are: '' at the root list, else the ref of the current folder. */
+  ref: string
+  /** Breadcrumb from the root down to here. */
+  trail: BrowseDir[]
+  dirs: BrowseDir[]
+  files: BrowsableFile[]
+}
+
+/**
+ * browseShared — list ONE directory, the way a file browser needs it.
+ *
+ * listSharedMedia walks the whole tree and returns a flat, newest-first dump.
+ * That is the right shape for "find me the recent clips" and the wrong shape
+ * for browsing: no folders, no sense of place, and capped at MAX_FILES so a big
+ * drive silently truncates. This returns exactly one level — folders first,
+ * then media — so the caller can walk the tree at human speed.
+ *
+ * An empty ref lists the shared roots themselves. A root whose drive is not
+ * mounted is returned with online:false rather than omitted: "DCIM (E:) — drive
+ * not connected" is an answer; a directory that silently vanishes is a bug
+ * report. @see src/app/(app)/api/shared/list/route.ts
+ */
+export function browseShared(ref?: string): BrowseResult {
+  const shared = getSharedRoots()
+  if (!shared.length) {
+    return { ok: false, error: 'no shared roots — owner must mark a drive shared', ref: '', trail: [], dirs: [], files: [] }
+  }
+
+  // No ref → the roots themselves.
+  if (!ref) {
+    return {
+      ok: true,
+      ref: '',
+      trail: [],
+      dirs: shared.map((r) => ({
+        name: r.label,
+        ref: fileRef(r.label, '.'),
+        online: fs.existsSync(r.path),
+      })),
+      files: [],
+    }
+  }
+
+  const parsed = parseFileRef(ref)
+  if (!parsed) return { ok: false, error: 'malformed ref', ref, trail: [], dirs: [], files: [] }
+  const root = shared.find((r) => r.label === parsed.rootLabel)
+  if (!root) return { ok: false, error: 'unknown or unshared root', ref, trail: [], dirs: [], files: [] }
+  if (parsed.relPath.split('/').some((seg) => seg === '..')) {
+    return { ok: false, error: 'invalid path', ref, trail: [], dirs: [], files: [] }
+  }
+
+  const rel = parsed.relPath === '.' ? '' : parsed.relPath
+  const absolute = path.resolve(root.path, rel)
+  if (!isPathShared(absolute)) return { ok: false, error: 'outside the shared roots', ref, trail: [], dirs: [], files: [] }
+
+  if (!fs.existsSync(root.path)) {
+    return { ok: false, error: `${root.label} — drive not connected`, ref, trail: [], dirs: [], files: [] }
+  }
+
+  let entries: fs.Dirent[]
+  try {
+    entries = fs.readdirSync(absolute, { withFileTypes: true })
+  } catch {
+    return { ok: false, error: 'folder not found', ref, trail: [], dirs: [], files: [] }
+  }
+
+  const tunnelBase = getSettings().tunnelUrl || process.env.MERLIN_TUNNEL_URL || undefined
+  const dirs: BrowseDir[] = []
+  const files: BrowsableFile[] = []
+
+  for (const e of entries) {
+    if (e.name.startsWith('.') || e.name.startsWith('$')) continue
+    const childRel = rel ? `${rel}/${e.name}` : e.name
+    if (e.isDirectory()) {
+      dirs.push({ name: e.name, ref: fileRef(root.label, childRel) })
+      continue
+    }
+    if (!MEDIA_RE.test(e.name)) continue
+    let st: fs.Stats
+    try {
+      st = fs.statSync(path.join(absolute, e.name))
+    } catch {
+      continue
+    }
+    const fref = fileRef(root.label, childRel)
+    files.push({
+      path: childRel,
+      name: e.name,
+      sizeMB: +(st.size / 1_048_576).toFixed(1),
+      mtime: st.mtime.toISOString(),
+      root: root.label,
+      ref: fref,
+      tunnelUrl: tunnelBase ? `${tunnelBase.replace(/\/$/, '')}/api/shared/file?ref=${encodeURIComponent(fref)}` : undefined,
+    })
+  }
+
+  dirs.sort((a, b) => a.name.localeCompare(b.name))
+  files.sort((a, b) => b.mtime.localeCompare(a.mtime))
+
+  // Breadcrumb: the root, then each segment on the way down.
+  const trail: BrowseDir[] = [{ name: root.label, ref: fileRef(root.label, '.') }]
+  const segs = rel ? rel.split('/') : []
+  segs.forEach((seg, i) => {
+    trail.push({ name: seg, ref: fileRef(root.label, segs.slice(0, i + 1).join('/')) })
+  })
+
+  return { ok: true, ref, trail, dirs, files }
+}
