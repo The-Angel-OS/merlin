@@ -81,7 +81,7 @@ export default function EndeavorDetailPage() {
         className="mb-6 inline-flex items-center gap-1.5 text-xs hover:text-white"
         style={{ color: '#7788aa' }}
       >
-        <ArrowLeft className="h-3.5 w-3.5" /> Federation
+        <ArrowLeft className="h-3.5 w-3.5" /> Portals
       </Link>
 
       <header className="mb-8">
@@ -156,7 +156,7 @@ export default function EndeavorDetailPage() {
           <div>
             <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: '#22cc88' }}>
               <ShieldCheck className="h-3.5 w-3.5" />
-              Endeavor verified · Federation {manifest.federationVersion}
+              Portal verified · protocol {manifest.federationVersion}
             </div>
             {manifest.capabilities?.length ? (
               <div className="flex flex-wrap gap-1.5">

@@ -15,7 +15,7 @@ type Crumb = { label: string; color: string; parent?: string; parentColor?: stri
 
 const CRUMBS: Record<string, Crumb> = {
   '/':                      { label: 'Dashboard',      color: '#f5a623' },
-  '/connect':               { label: 'Federation',     color: '#99ccff', parent: 'Connect',      parentColor: '#99ccff' },
+  '/connect':               { label: 'Portals',        color: '#99ccff', parent: 'Connect',      parentColor: '#99ccff' },
   '/log':                   { label: 'Activity Log',   color: '#f5a623', parent: 'Bridge',       parentColor: '#f5a623' },
   '/media':                 { label: 'Media',          color: '#99ccff', parent: 'Media',        parentColor: '#99ccff' },
   '/inventory':             { label: 'Ingest',         color: '#ff9a4d', parent: 'Ingest',       parentColor: '#ff9a4d' },
@@ -101,7 +101,7 @@ export default function AppHeader({
           >
             {crumb?.label || 'MERLIN'}
           </span>
-          {/* Federation connection readout: Connection: <Endeavor> · Enterprise: <Enterprise> */}
+          {/* Portal readout: which portal this machine is attached to */}
           <ConnectionStatus />
         </div>
 

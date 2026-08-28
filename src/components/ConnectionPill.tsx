@@ -1,6 +1,6 @@
 'use client'
 /**
- * ConnectionPill — the "combadge" for Merlin's federation connection.
+ * ConnectionPill — the "combadge" for the portal Merlin is attached to.
  *
  * Sits in the header. Shows the active Endeavor, expands on click to let
  * the user switch between remembered Endeavors or head to /connect to add
@@ -67,7 +67,7 @@ export default function ConnectionPill() {
       <Link
         href="/connect"
         className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-lcars-blue/40 bg-lcars-blue/8 text-lcars-blue text-[10px] font-mono hover:bg-lcars-blue/15 transition-colors"
-        title="Connect to a Federation Endeavor"
+        title="Connect to a portal"
       >
         <Radio className="size-3" />
         <span>Connect</span>

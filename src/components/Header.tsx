@@ -11,7 +11,7 @@ interface Tenant { id: string; name: string; slug: string; domain?: string }
 
 const NAV_ITEMS = [
   { href: '/', label: 'Bridge' },
-  { href: '/connect', label: 'Federation' },
+  { href: '/connect', label: 'Portals' },
   { href: '/media', label: 'Media' },
   { href: '/inventory', label: 'Ingest' },
   { href: '/cameras', label: 'Cameras' },

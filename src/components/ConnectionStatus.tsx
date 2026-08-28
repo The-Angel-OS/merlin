@@ -1,6 +1,6 @@
 'use client'
 /**
- * ConnectionStatus — top-bar federation status indicator.
+ * ConnectionStatus — top-bar portal status indicator.
  *
  * "Connection: <Endeavor> · Enterprise: <Enterprise>" — a persistent readout of
  * which endeavor this Merlin is signed into and the hosting Enterprise/Diocese.

@@ -219,12 +219,12 @@ export default function LeoPage() {
             <button
               onClick={() => {
                 if (!status?.lockedOn) {
-                  setMessages(m => [...m, { role: 'assistant', content: '⚑ Enterprise LEO needs a lock-on. Open CONNECT → Federation to lock this node onto an Endeavor — then LEO (on Core) becomes reachable from here. Until then you\'re talking to Merlin\'s on-box brain.' }])
+                  setMessages(m => [...m, { role: 'assistant', content: '⚑ Enterprise LEO needs a lock-on. Open Portals to attach this machine to your portal — then LEO (on Core) becomes reachable from here. Until then you\'re talking to Merlin\'s on-box brain.' }])
                   return
                 }
                 setBrain('remote')
               }}
-              title={status?.lockedOn ? 'LEO — the enterprise brain on Core (Claude + full tools + endeavor context)' : 'Lock onto an Endeavor first (Connect → Federation)'}
+              title={status?.lockedOn ? 'LEO — the enterprise brain on Core (Claude + full tools + endeavor context)' : 'Attach this machine to your portal first (Portals)'}
               className={cn('px-2.5 py-1.5 transition border-l border-border', brain === 'remote' ? 'bg-lcars-amber/25 text-lcars-amber font-semibold' : 'text-muted-foreground hover:text-foreground', !status?.lockedOn && 'opacity-70')}
             >
               LEO · enterprise{status?.lockedOn ? '' : ' 🔒'}
@@ -486,7 +486,7 @@ function CommStream() {
             <Radio className="size-6 text-muted-foreground mb-2" />
             <div className="text-sm font-mono text-foreground">No endeavor locked on</div>
             <div className="text-xs text-muted-foreground mt-1 max-w-sm">
-              Lock this node onto an Endeavor (Federation → Connect) to open its bus channel.
+              Attach this machine to your portal (Portals) to open its bus channel.
             </div>
           </div>
         ) : messages.length === 0 ? (

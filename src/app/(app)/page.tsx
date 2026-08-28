@@ -2,7 +2,7 @@
 /**
  * Merlin — Node Dashboard.
  * A controller node for the personal-area network: serves local media, runs the
- * ingest queue, and connects to the Angel OS federation through its initial node.
+ * ingest queue, and attaches this machine to its Angel OS portal.
  * Live data from /api/system + /api/movies/roots + the local ingest queue.
  */
 import { useEffect, useState } from 'react'
@@ -194,9 +194,9 @@ export default function NodeDashboard() {
             <div className="truncate text-[11px] text-muted-foreground">
               {lockedOn
                 ? active?.user?.email
-                  ? `Signed in as ${active.user.email} · this node is contributing to the federation`
-                  : 'This node is locked on and contributing to the federation.'
-                : 'Connect this Merlin to an Endeavor to join the federation and start sharing.'}
+                  ? `Signed in as ${active.user.email} · this machine is contributing to your portal`
+                  : 'This machine is locked on and contributing to your portal.'
+                : 'Attach this Merlin to your portal to start sharing.'}
             </div>
           </div>
           <div
@@ -232,7 +232,7 @@ export default function NodeDashboard() {
                 ? `Locked onto ${boundLabel} · ${sys.angels.responseMs}ms`
                 : `Locked onto ${boundLabel} · reconnecting…`
               : sys?.angels.online
-                ? 'Federation reachable · not locked on yet'
+                ? 'Portal reachable · not locked on yet'
                 : 'Local node standing by. Ad Astra.'}
           </p>
         </div>
@@ -246,7 +246,7 @@ export default function NodeDashboard() {
 
       {/* ── Stat cards ── */}
       <motion.div variants={container} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard label="Federation" value={lockedOn ? 'LINKED' : sys ? 'LOCAL' : '···'}
+        <StatCard label="Portal" value={lockedOn ? 'LINKED' : sys ? 'LOCAL' : '···'}
           sub={lockedOn ? (boundLabel || 'locked on') : sys?.angels.online ? 'reachable · not locked on' : 'connect via initial node'}
           icon={Radio} accent={lockedOn ? '#22cc88' : '#f5a623'} href="/connect" />
         <StatCard label="Ingest Queue" value={queue.pending} sub={`${queue.total} total · ${queue.error} errors`}
@@ -350,7 +350,7 @@ export default function NodeDashboard() {
           <QuickAction label="Ingest" icon={Upload} color="#ff9a4d" href="/inventory" />
           <QuickAction label="LEO AI" icon={Sparkles} color="#cc99cc" href="/leo" />
           <QuickAction label="Cameras" icon={Camera} color="#cc4444" href="/cameras" />
-          <QuickAction label="Federation" icon={Radio} color="#99ccff" href="/connect" />
+          <QuickAction label="Portals" icon={Radio} color="#99ccff" href="/connect" />
           <QuickAction label="YouTube" icon={Youtube} color="#cc4444" href="/youtube" />
           <QuickAction label="Angel OS Portal" icon={ExternalLink} color="#f5a623" href={ANGELS_PORTAL} external />
         </div>

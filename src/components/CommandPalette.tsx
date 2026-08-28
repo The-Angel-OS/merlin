@@ -24,7 +24,7 @@ type Item = {
 }
 
 const NAV_ITEMS: Item[] = [
-  { id: 'connect',      label: 'Federation',      sub: 'Connect',      icon: Radio,           color: '#99ccff',  href: '/connect' },
+  { id: 'connect',      label: 'Portals',         sub: 'Connect',      icon: Radio,           color: '#99ccff',  href: '/connect' },
   { id: 'dashboard',    label: 'Dashboard',       sub: 'Bridge',       icon: LayoutDashboard, color: '#f5a623',  href: '/' },
   { id: 'log',          label: 'Activity Log',    sub: 'Bridge',       icon: Activity,        color: '#f5a623',  href: '/log' },
   { id: 'media',        label: 'Media',           sub: 'Media',        icon: Image,           color: '#99ccff',  href: '/media' },

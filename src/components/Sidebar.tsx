@@ -30,7 +30,7 @@ const NAV: NavSection[] = [
   {
     title: 'Connect', accent: '#99ccff',
     items: [
-      { href: '/connect', label: 'Federation', icon: Radio },
+      { href: '/connect', label: 'Portals', icon: Radio },
       { href: ANGELS_PORTAL, label: 'Angel OS Portal', icon: ExternalLink, external: true },
     ],
   },

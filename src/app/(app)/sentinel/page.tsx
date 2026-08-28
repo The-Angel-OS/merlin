@@ -106,7 +106,7 @@ export default function SentinelPage() {
 
       {!bound ? (
         <Card className="p-4 text-xs font-mono text-lcars-amber border-lcars-amber/30 bg-lcars-amber/5">
-          Not locked onto an endeavor — submittals have nowhere to go. Lock on in Federation first.
+          Not attached to a portal — submittals have nowhere to go. Attach one in Portals first.
         </Card>
       ) : null}
 
